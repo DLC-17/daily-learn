@@ -4,7 +4,7 @@ primary_region = "iad"
 [build]
 
 [deploy]
-  release_command = "node dist/migrate.js"
+  release_command = "node api/dist/db/migrate.js"
 
 [http_service]
   internal_port = 8080
