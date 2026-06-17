@@ -4,6 +4,7 @@ export interface GeneratedQuestion {
   question_text: string;
   options: [string, string, string, string];
   correct_index: number;
+  explanation?: string;
 }
 
 interface RawQuestion {
@@ -50,6 +51,7 @@ export const generateQuestionsFromChunk = async (chunk: string): Promise<Generat
           question_text: q.question_text,
           options: q.options,
           correct_index: q.correct_index,
+          explanation: q.explanation,
         }));
       }
     } catch (err) {
