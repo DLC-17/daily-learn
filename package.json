@@ -1,0 +1,17 @@
+{
+  "name": "daily-learn",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "mobile",
+    "api"
+  ],
+  "scripts": {
+    "lint": "npm run lint --workspace=api && npm run lint --workspace=mobile",
+    "typecheck": "npm run typecheck --workspace=api && npm run typecheck --workspace=mobile",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "prettier": "^3.8.4"
+  }
+}
