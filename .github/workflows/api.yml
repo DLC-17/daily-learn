@@ -1,0 +1,55 @@
+name: API CI & Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/**'
+      - 'package.json'
+      - 'package-lock.json'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/**'
+      - 'package.json'
+      - 'package-lock.json'
+
+jobs:
+  ci:
+    name: Lint & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --workspace=api
+
+      - name: Typecheck
+        run: npm run typecheck --workspace=api
+
+      - name: Build
+        run: npm run build --workspace=api
+
+  deploy:
+    name: Deploy to Fly.io
+    needs: ci
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy
+        run: flyctl deploy --remote-only
+        working-directory: api
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

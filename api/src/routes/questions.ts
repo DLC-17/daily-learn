@@ -13,7 +13,7 @@ router.get(
     const { user } = req as AuthRequest;
 
     const { rows } = await pool.query(
-      `SELECT q.id, q.question_text, q.options, q.correct_index,
+      `SELECT q.id, q.question_text, q.options::json AS options, q.correct_index,
               q.times_shown, q.times_correct,
               CASE WHEN q.times_shown = 0 THEN 0.6
                    ELSE 1.0 - (q.times_correct::float / q.times_shown)
@@ -36,7 +36,7 @@ router.get(
     const { user } = req as AuthRequest;
 
     const { rows } = await pool.query(
-      `SELECT q.id, q.question_text, q.options, q.correct_index
+      `SELECT q.id, q.question_text, q.options::json AS options, q.correct_index
        FROM questions q
        JOIN content c ON c.id = q.content_id
        WHERE q.id = $1 AND c.user_id = $2`,

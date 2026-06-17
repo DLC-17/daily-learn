@@ -7,6 +7,20 @@ import { PushTokenSchema } from '../types/schemas';
 
 const router = Router();
 
+router.get(
+  '/profile',
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
+    const { user } = req as AuthRequest;
+    const { rows } = await pool.query<{
+      streak_count: number;
+      last_active: string | null;
+    }>('SELECT streak_count, last_active FROM users WHERE id = $1', [user.id]);
+    if (rows.length === 0) throw new AppError(404, 'User not found', 'NOT_FOUND');
+    res.json({ data: rows[0] });
+  }),
+);
+
 router.patch(
   '/push-token',
   requireAuth,
