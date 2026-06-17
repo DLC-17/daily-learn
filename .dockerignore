@@ -1,0 +1,7 @@
+.git
+.ai
+mobile
+.env
+node_modules
+api/node_modules
+api/dist
