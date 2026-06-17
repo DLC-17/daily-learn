@@ -1,0 +1,29 @@
+# Steering & spec files
+.ai/
+
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+.expo/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+
+# Expo
+.expo-shared/
