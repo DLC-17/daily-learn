@@ -24,7 +24,7 @@ router.post(
       user_id: string;
       options: string[];
     }>(
-      `SELECT q.id, q.correct_index, q.explanation, q.options, c.user_id
+      `SELECT q.id, q.correct_index, q.explanation, q.options::json AS options, c.user_id
        FROM questions q
        JOIN content c ON c.id = q.content_id
        WHERE q.id = $1`,
@@ -73,7 +73,7 @@ router.get(
 
     const { rows } = await pool.query(
       `SELECT qs.id, qs.question_id, qs.answer_index, qs.is_correct, qs.shown_at,
-              q.question_text, q.correct_index, q.options
+              q.question_text, q.correct_index, q.options::json AS options
        FROM quiz_sessions qs
        JOIN questions q ON q.id = qs.question_id
        WHERE qs.user_id = $1
