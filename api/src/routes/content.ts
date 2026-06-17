@@ -77,8 +77,8 @@ router.post(
       const questions = await generateQuestionsFromChunk(chunk);
       for (const q of questions) {
         await pool.query(
-          'INSERT INTO questions (content_id, question_text, options, correct_index) VALUES ($1, $2, $3, $4)',
-          [contentId, q.question_text, JSON.stringify(q.options), q.correct_index],
+          'INSERT INTO questions (content_id, question_text, options, correct_index, explanation) VALUES ($1, $2, $3, $4, $5)',
+          [contentId, q.question_text, JSON.stringify(q.options), q.correct_index, q.explanation ?? null],
         );
         questionsGenerated++;
       }

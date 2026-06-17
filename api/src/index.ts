@@ -4,17 +4,14 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { pool } from './db/client';
+import { isSchedulerRunning } from './state';
+import { startScheduler } from './services/scheduler';
 import { errorHandler } from './middleware/errorHandler';
 import authRouter from './routes/auth';
 import contentRouter from './routes/content';
 import questionsRouter from './routes/questions';
 import quizRouter from './routes/quiz';
 import userRouter from './routes/user';
-
-export let schedulerRunning = false;
-export const setSchedulerRunning = (value: boolean): void => {
-  schedulerRunning = value;
-};
 
 const app = express();
 
@@ -29,7 +26,7 @@ app.get('/health', async (_req, res) => {
       status: 'ok',
       db: 'ok',
       uptime: Math.floor(process.uptime()),
-      scheduler: schedulerRunning ? 'running' : 'stopped',
+      scheduler: isSchedulerRunning() ? 'running' : 'stopped',
     });
   } catch {
     res.status(503).json({ status: 'error', db: 'unreachable' });
@@ -52,6 +49,7 @@ if (process.env.NODE_ENV !== 'test') {
   const PORT = parseInt(process.env['PORT'] ?? '8080', 10);
   app.listen(PORT, () => {
     console.log(`API listening on port ${PORT}`);
+    startScheduler();
   });
 }
 

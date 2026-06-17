@@ -17,22 +17,29 @@ import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, fontSizes, borderRadius } from '../../constants/theme';
 
-const LoginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required'),
-});
+const RegisterSchema = z
+  .object({
+    email: z.string().email('Invalid email address'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  });
 
-type FieldErrors = Partial<Record<'email' | 'password', string>>;
+type FieldErrors = Partial<Record<'email' | 'password' | 'confirmPassword', string>>;
 
-export default function LoginScreen() {
+export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const setTokens = useAuthStore((s) => s.setTokens);
 
-  const handleLogin = async () => {
-    const result = LoginSchema.safeParse({ email, password });
+  const handleRegister = async () => {
+    const result = RegisterSchema.safeParse({ email, password, confirmPassword });
     if (!result.success) {
       const fieldErrors: FieldErrors = {};
       for (const issue of result.error.issues) {
@@ -47,14 +54,15 @@ export default function LoginScreen() {
     try {
       const { data } = await api.post<{
         data: { accessToken: string; refreshToken: string };
-      }>('/auth/login', result.data);
+      }>('/auth/register', { email: result.data.email, password: result.data.password });
       await setTokens(data.data.accessToken, data.data.refreshToken);
       router.replace('/(tabs)');
     } catch (err) {
       const msg = isAxiosError(err)
-        ? (err.response?.data as { error?: { message?: string } })?.error?.message ?? 'Login failed'
-        : 'Login failed';
-      Alert.alert('Sign In Failed', msg);
+        ? (err.response?.data as { error?: { message?: string } })?.error?.message ??
+          'Registration failed'
+        : 'Registration failed';
+      Alert.alert('Registration Failed', msg);
     } finally {
       setLoading(false);
     }
@@ -66,8 +74,8 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Daily Learn</Text>
-        <Text style={styles.subtitle}>Build better habits, one question at a time.</Text>
+        <Text style={styles.title}>Create Account</Text>
+        <Text style={styles.subtitle}>Start your daily learning journey.</Text>
 
         <View style={styles.form}>
           <TextInput
@@ -85,28 +93,42 @@ export default function LoginScreen() {
 
           <TextInput
             style={[styles.input, errors.password ? styles.inputError : null]}
-            placeholder="Password"
+            placeholder="Password (min 8 characters)"
             placeholderTextColor={colors.textSecondary}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            autoComplete="current-password"
-            textContentType="password"
+            autoComplete="new-password"
+            textContentType="newPassword"
           />
           {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
 
+          <TextInput
+            style={[styles.input, errors.confirmPassword ? styles.inputError : null]}
+            placeholder="Confirm password"
+            placeholderTextColor={colors.textSecondary}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+            autoComplete="new-password"
+            textContentType="newPassword"
+          />
+          {errors.confirmPassword ? (
+            <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+          ) : null}
+
           <TouchableOpacity
             style={[styles.button, loading ? styles.buttonDisabled : null]}
-            onPress={handleLogin}
+            onPress={handleRegister}
             disabled={loading}
             accessibilityRole="button"
           >
-            <Text style={styles.buttonText}>{loading ? 'Signing in…' : 'Sign In'}</Text>
+            <Text style={styles.buttonText}>{loading ? 'Creating account…' : 'Create Account'}</Text>
           </TouchableOpacity>
 
-          <Link href="/(auth)/register" asChild>
+          <Link href="/(auth)/login" asChild>
             <TouchableOpacity style={styles.linkButton} accessibilityRole="link">
-              <Text style={styles.linkText}>{"Don't have an account? Register"}</Text>
+              <Text style={styles.linkText}>Already have an account? Sign In</Text>
             </TouchableOpacity>
           </Link>
         </View>
