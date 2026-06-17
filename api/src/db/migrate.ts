@@ -1,3 +1,5 @@
+import '../env'; // must be first — loads dotenv before Pool is created
+
 import fs from 'fs';
 import path from 'path';
 import { Pool } from 'pg';

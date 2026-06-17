@@ -1,3 +1,5 @@
+import './env'; // must be first — loads dotenv before pool is initialized
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
