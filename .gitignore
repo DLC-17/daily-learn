@@ -1,6 +1,9 @@
 # Steering & spec files
 .ai/
 
+# Claude Code local settings
+.claude/
+
 # Dependencies
 node_modules/
 
