@@ -72,9 +72,11 @@ router.post(
     );
     const contentId = (contentRow as { id: string }).id;
 
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     let questionsGenerated = 0;
-    for (const chunk of chunks) {
-      const questions = await generateQuestionsFromChunk(chunk);
+    for (let i = 0; i < chunks.length; i++) {
+      if (i > 0) await sleep(4_000);
+      const questions = await generateQuestionsFromChunk(chunks[i]!);
       for (const q of questions) {
         await pool.query(
           'INSERT INTO questions (content_id, question_text, options, correct_index, explanation) VALUES ($1, $2, $3, $4, $5)',

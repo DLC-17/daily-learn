@@ -2,6 +2,7 @@ app = "daily-learn-api"
 primary_region = "iad"
 
 [build]
+  dockerfile = "Dockerfile"
 
 [deploy]
   release_command = "node api/dist/db/migrate.js"
