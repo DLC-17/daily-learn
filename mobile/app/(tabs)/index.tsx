@@ -1,7 +1,12 @@
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import api from '../../services/api';
 import { colors, spacing, fontSizes, borderRadius } from '../../constants/theme';
+
+interface Question {
+  id: string;
+}
 
 interface UserProfile {
   streak_count: number;
@@ -24,6 +29,11 @@ const fetchSessions = async (): Promise<QuizSession[]> => {
   return data.data;
 };
 
+const fetchNextQuestion = async (): Promise<Question | null> => {
+  const { data } = await api.get<{ data: Question[] }>('/questions');
+  return data.data[0] ?? null;
+};
+
 const todayStr = () => new Date().toISOString().split('T')[0]!;
 
 export default function HomeScreen() {
@@ -38,6 +48,11 @@ export default function HomeScreen() {
     isLoading: sessionsLoading,
     refetch: refetchSessions,
   } = useQuery({ queryKey: ['sessions-home'], queryFn: fetchSessions });
+
+  const { data: nextQuestion } = useQuery({
+    queryKey: ['next-question'],
+    queryFn: fetchNextQuestion,
+  });
 
   const isLoading = profileLoading || sessionsLoading;
   const onRefresh = () => { void refetchProfile(); void refetchSessions(); };
@@ -73,6 +88,16 @@ export default function HomeScreen() {
               <Text style={styles.streakLabel}>day streak</Text>
             </View>
           </View>
+
+          <TouchableOpacity
+            style={[styles.quizButton, !nextQuestion ? styles.quizButtonDisabled : null]}
+            onPress={() => nextQuestion && router.push(`/quiz/${nextQuestion.id}`)}
+            disabled={!nextQuestion}
+          >
+            <Text style={styles.quizButtonText}>
+              {nextQuestion ? 'Start Quiz' : 'No questions yet — upload some content first'}
+            </Text>
+          </TouchableOpacity>
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Today's Progress</Text>
@@ -184,4 +209,13 @@ const styles = StyleSheet.create({
   },
   statValue: { fontSize: fontSizes.xl, fontWeight: 'bold', color: colors.text },
   statLabel: { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 2 },
+  quizButton: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  quizButtonDisabled: { opacity: 0.4 },
+  quizButtonText: { color: '#fff', fontSize: fontSizes.md, fontWeight: '600' },
 });
