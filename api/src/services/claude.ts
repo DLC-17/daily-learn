@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Groq from 'groq-sdk';
 
 export interface GeneratedQuestion {
   question_text: string;
@@ -7,20 +7,20 @@ export interface GeneratedQuestion {
   explanation?: string;
 }
 
-let _client: GoogleGenerativeAI | undefined;
+let _client: Groq | undefined;
 
-const getClient = (): GoogleGenerativeAI => {
+const getClient = (): Groq => {
   if (!_client) {
-    const apiKey = process.env['GEMINI_API_KEY'];
-    if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
-    _client = new GoogleGenerativeAI(apiKey);
+    const apiKey = process.env['GROQ_API_KEY'];
+    if (!apiKey) throw new Error('GROQ_API_KEY must be set');
+    _client = new Groq({ apiKey });
   }
   return _client;
 };
 
 const SYSTEM_PROMPT = `You are a quiz generator. Given a text passage, generate exactly 3 multiple-choice questions that test comprehension of the content.
 
-Return ONLY a JSON array. Each object must have:
+Return ONLY a JSON object with a "questions" key containing an array. Each object in the array must have:
 - "question_text": the question string
 - "options": array of exactly 4 answer strings
 - "correct_index": integer 0–3 indicating the correct option
@@ -31,26 +31,27 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export const generateQuestionsFromChunk = async (chunk: string): Promise<GeneratedQuestion[]> => {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const model = getClient().getGenerativeModel({
-        model: 'gemini-2.0-flash',
-        systemInstruction: SYSTEM_PROMPT,
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.4,
-          maxOutputTokens: 1024,
-        },
+      const completion = await getClient().chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: chunk },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.4,
+        max_tokens: 1024,
       });
 
-      const result = await model.generateContent(chunk);
-      const text = result.response.text();
-      const questions = JSON.parse(text) as GeneratedQuestion[];
+      const text = completion.choices[0]?.message?.content ?? '';
+      const parsed = JSON.parse(text) as { questions: GeneratedQuestion[] };
+      const questions = parsed.questions;
       if (Array.isArray(questions) && questions.length > 0) return questions;
     } catch (err) {
       const is429 =
-        err instanceof Error && (err.message.includes('429') || err.message.includes('quota'));
+        err instanceof Error && (err.message.includes('429') || err.message.includes('quota') || err.message.includes('rate'));
       if (attempt === 2) {
         console.error(
-          '[gemini] chunk failed after 3 attempts:',
+          '[groq] chunk failed after 3 attempts:',
           err instanceof Error ? err.message : String(err),
         );
         return [];

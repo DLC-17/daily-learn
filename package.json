@@ -4,7 +4,8 @@
   "private": true,
   "workspaces": [
     "mobile",
-    "api"
+    "api",
+    "web"
   ],
   "scripts": {
     "lint": "npm run lint --workspace=api && npm run lint --workspace=mobile",
