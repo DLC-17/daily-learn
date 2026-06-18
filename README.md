@@ -6,7 +6,7 @@ A React Native app that sends 3 push notification quizzes per day, generated fro
 
 | Layer | Tech |
 |---|---|
-| Mobile | React Native + Expo SDK 56, Expo Router |
+| Mobile | React Native + Expo SDK 54, Expo Router |
 | API | Node.js 20 + Express 5, TypeScript |
 | Database | PostgreSQL (Neon serverless) |
 | AI | Google Gemini 2.0 Flash |
@@ -35,7 +35,7 @@ A React Native app that sends 3 push notification quizzes per day, generated fro
 
 ## How it works
 
-1. **Upload** — paste text or pick a PDF/DOCX; the API chunks it and calls Gemini to generate multiple-choice questions with explanations
+1. **Upload** — paste text or pick a PDF, DOCX, TXT, or Markdown file; the API chunks it and calls Gemini to generate multiple-choice questions with explanations
 2. **Schedule** — a cron job runs at midnight and picks 3 random delivery windows (morning / midday / evening) for each user
 3. **Deliver** — a per-minute job dispatches push notifications at the scheduled times via Expo's push service
 4. **Quiz** — tap the notification to open the question; answer and see instant feedback with an explanation
@@ -43,28 +43,34 @@ A React Native app that sends 3 push notification quizzes per day, generated fro
 ## API setup
 
 ```bash
-cd api
-cp .env.example .env   # fill in DATABASE_URL, JWT secrets, GEMINI_API_KEY
+# from repo root
+cp api/.env.example api/.env   # fill in DATABASE_URL, JWT secrets, GEMINI_API_KEY
 npm install
-npm run migrate        # run DB migrations
-npm run dev
+npm run migrate --workspace=api
+npm run dev --workspace=api
 ```
 
 ## Mobile setup
 
 ```bash
-cd mobile
-cp .env.example .env   # set EXPO_PUBLIC_API_URL
+# from repo root
+cp mobile/.env.example mobile/.env   # set EXPO_PUBLIC_API_URL
 npm install
-npx expo start
+cd mobile && npx expo start
 ```
+
+Scan the QR code with [Expo Go](https://expo.dev/go) on your device.
 
 ## Deploy
 
 **API** — hosted on Fly.io. Migrations run automatically on deploy via `release_command`.
 
 ```bash
-flyctl deploy --remote-only --config api/fly.toml --dockerfile api/Dockerfile
+# from repo root
+fly deploy -c api/fly.toml
+
+# set required secrets once
+fly secrets set GEMINI_API_KEY=... JWT_SECRET=... JWT_REFRESH_SECRET=... DATABASE_URL=... -a daily-learn-api
 ```
 
 **Mobile** — built with EAS Build.

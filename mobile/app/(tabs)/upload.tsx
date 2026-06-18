@@ -10,10 +10,25 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import api from '../../services/api';
 import { colors, spacing, fontSizes, borderRadius } from '../../constants/theme';
+
+const stripMarkdown = (text: string): string =>
+  text
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`[^`\n]+`/g, '')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/!\[.*?\]\(.*?\)/g, '')
+    .replace(/\[([^\]]+)\]\(.*?\)/g, '$1')
+    .replace(/[*_]{1,2}([^*_\n]+)[*_]{1,2}/g, '$1')
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    .replace(/^-{3,}$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 
 interface ContentItem {
   id: string;
@@ -93,6 +108,8 @@ export default function UploadScreen() {
       type: [
         'application/pdf',
         'text/plain',
+        'text/markdown',
+        'text/x-markdown',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       ],
       copyToCacheDirectory: true,
@@ -100,6 +117,12 @@ export default function UploadScreen() {
     if (result.canceled) return;
     const file = result.assets[0];
     if (!file) return;
+
+    if (file.name.toLowerCase().endsWith('.md')) {
+      const raw = await FileSystem.readAsStringAsync(file.uri, { encoding: 'utf8' });
+      textMutation.mutate({ title: title.trim() || file.name, text: stripMarkdown(raw) });
+      return;
+    }
 
     const formData = new FormData();
     formData.append('title', title.trim() || file.name);
@@ -166,7 +189,7 @@ export default function UploadScreen() {
             {isBusy ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Choose File (PDF, TXT, DOCX)</Text>
+              <Text style={styles.buttonText}>Choose File (PDF, TXT, DOCX, MD)</Text>
             )}
           </TouchableOpacity>
         ) : (

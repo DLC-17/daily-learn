@@ -26,6 +26,8 @@ Return ONLY a JSON array. Each object must have:
 - "correct_index": integer 0–3 indicating the correct option
 - "explanation": one sentence explaining the correct answer`;
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export const generateQuestionsFromChunk = async (chunk: string): Promise<GeneratedQuestion[]> => {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -44,6 +46,8 @@ export const generateQuestionsFromChunk = async (chunk: string): Promise<Generat
       const questions = JSON.parse(text) as GeneratedQuestion[];
       if (Array.isArray(questions) && questions.length > 0) return questions;
     } catch (err) {
+      const is429 =
+        err instanceof Error && (err.message.includes('429') || err.message.includes('quota'));
       if (attempt === 2) {
         console.error(
           '[gemini] chunk failed after 3 attempts:',
@@ -51,6 +55,7 @@ export const generateQuestionsFromChunk = async (chunk: string): Promise<Generat
         );
         return [];
       }
+      await sleep(is429 ? (attempt + 1) * 15_000 : (attempt + 1) * 5_000);
     }
   }
   return [];
