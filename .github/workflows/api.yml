@@ -41,14 +41,23 @@ jobs:
   deploy:
     name: Deploy to Northflank
     needs: ci
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      (vars.NORTHFLANK_PROJECT_ID != '' || secrets.NORTHFLANK_PROJECT_ID != '') &&
+      (vars.NORTHFLANK_SERVICE_ID != '' || secrets.NORTHFLANK_SERVICE_ID != '') &&
+      (vars.NORTHFLANK_API_TOKEN != '' || secrets.NORTHFLANK_API_TOKEN != '')
     runs-on: ubuntu-latest
+    env:
+      NORTHFLANK_PROJECT_ID: ${{ vars.NORTHFLANK_PROJECT_ID || secrets.NORTHFLANK_PROJECT_ID }}
+      NORTHFLANK_SERVICE_ID: ${{ vars.NORTHFLANK_SERVICE_ID || secrets.NORTHFLANK_SERVICE_ID }}
+      NORTHFLANK_API_TOKEN: ${{ vars.NORTHFLANK_API_TOKEN || secrets.NORTHFLANK_API_TOKEN }}
     steps:
       - name: Trigger Northflank redeploy
         run: |
           SHA="${{ github.sha }}"
           curl -sf -X POST \
-            "https://api.northflank.com/v1/projects/${{ secrets.NORTHFLANK_PROJECT_ID }}/services/${{ secrets.NORTHFLANK_SERVICE_ID }}/build" \
-            -H "Authorization: Bearer ${{ secrets.NORTHFLANK_API_TOKEN }}" \
+            "https://api.northflank.com/v1/projects/${NORTHFLANK_PROJECT_ID}/services/${NORTHFLANK_SERVICE_ID}/build" \
+            -H "authorization: bearer ${NORTHFLANK_API_TOKEN}" \
             -H "Content-Type: application/json" \
             -d "{\"sha\": \"$SHA\"}"
