@@ -16,6 +16,10 @@ node_modules/
 dist/
 build/
 .expo/
+.next/
+
+# Vercel
+.vercel/
 
 # Logs
 *.log

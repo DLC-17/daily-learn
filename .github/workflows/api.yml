@@ -39,17 +39,15 @@ jobs:
         run: npm run build --workspace=api
 
   deploy:
-    name: Deploy to Fly.io
+    name: Deploy to Northflank
     needs: ci
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-
-      - name: Deploy
-        run: flyctl deploy --remote-only
-        working-directory: api
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - name: Trigger Northflank redeploy
+        run: |
+          curl -sf -X POST \
+            "https://api.northflank.com/v1/projects/${{ secrets.NORTHFLANK_PROJECT_ID }}/services/${{ secrets.NORTHFLANK_SERVICE_ID }}/deploy" \
+            -H "Authorization: Bearer ${{ secrets.NORTHFLANK_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"branch": "main"}'
