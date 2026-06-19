@@ -41,7 +41,7 @@ const fetchProfile = async (): Promise<UserProfile> => {
 };
 
 const fetchSessions = async (): Promise<QuizSession[]> => {
-  const { data } = await api.get<{ data: QuizSession[] }>('/quiz/sessions?limit=100');
+  const { data } = await api.get<{ data: QuizSession[] }>('/quiz/sessions?limit=500');
   return data.data;
 };
 
@@ -193,7 +193,7 @@ export default function HomeScreen() {
                 <Text style={styles.statLabel}>Accuracy</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statValue}>{todaySessions.length > 0 ? todayCorrect : '—'}</Text>
+                <Text style={styles.statValue}>{todayCorrect}</Text>
                 <Text style={styles.statLabel}>Today Correct</Text>
               </View>
             </View>

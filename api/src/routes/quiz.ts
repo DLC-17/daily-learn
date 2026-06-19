@@ -50,7 +50,35 @@ router.post(
       [question_id],
     );
 
-    await pool.query('UPDATE users SET last_active = now() WHERE id = $1', [user.id]);
+    // Streak update: only fires on the first answer of each day
+    const { rows: todayRows } = await pool.query<{ cnt: string }>(
+      `SELECT COUNT(*) AS cnt FROM quiz_sessions
+       WHERE user_id = $1 AND shown_at::date = CURRENT_DATE`,
+      [user.id],
+    );
+    const isFirstToday = parseInt(todayRows[0]?.cnt ?? '0', 10) === 1;
+
+    if (isFirstToday) {
+      const { rows: userRows } = await pool.query<{ last_active: string | null }>(
+        'SELECT last_active FROM users WHERE id = $1',
+        [user.id],
+      );
+      const lastActive = userRows[0]?.last_active;
+      const lastActiveDate = lastActive
+        ? new Date(lastActive).toISOString().split('T')[0]
+        : null;
+      const yesterday = new Date();
+      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+      const yesterdayDate = yesterday.toISOString().split('T')[0];
+
+      const newStreak = lastActiveDate === yesterdayDate ? 'streak_count + 1' : '1';
+      await pool.query(
+        `UPDATE users SET streak_count = ${newStreak}, last_active = now() WHERE id = $1`,
+        [user.id],
+      );
+    } else {
+      await pool.query('UPDATE users SET last_active = now() WHERE id = $1', [user.id]);
+    }
 
     const correctOption = question.options[question.correct_index];
     const explanation =
@@ -68,14 +96,16 @@ router.get(
   requireAuth,
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthRequest;
-    const limit = Math.min(parseInt((req.query['limit'] as string | undefined) ?? '20', 10), 100);
+    const limit = Math.min(parseInt((req.query['limit'] as string | undefined) ?? '20', 10), 500);
     const offset = parseInt((req.query['offset'] as string | undefined) ?? '0', 10);
 
     const { rows } = await pool.query(
       `SELECT qs.id, qs.question_id, qs.answer_index, qs.is_correct, qs.shown_at,
-              q.question_text, q.correct_index, q.options::json AS options
+              q.question_text, q.correct_index, q.options::json AS options,
+              c.id AS content_id, c.title AS content_title
        FROM quiz_sessions qs
        JOIN questions q ON q.id = qs.question_id
+       JOIN content c ON c.id = q.content_id
        WHERE qs.user_id = $1
        ORDER BY qs.shown_at DESC
        LIMIT $2 OFFSET $3`,
