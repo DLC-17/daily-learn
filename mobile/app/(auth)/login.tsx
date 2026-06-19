@@ -15,6 +15,7 @@ import { isAxiosError } from 'axios';
 import { z } from 'zod';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { colors, spacing, fontSizes, borderRadius } from '../../constants/theme';
 
 const LoginSchema = z.object({
@@ -61,6 +62,7 @@ export default function LoginScreen() {
   };
 
   return (
+    <ScreenWrapper>
     <KeyboardAvoidingView
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -112,11 +114,12 @@ export default function LoginScreen() {
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
   container: {
     flexGrow: 1,
     justifyContent: 'center',

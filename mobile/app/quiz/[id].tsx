@@ -10,6 +10,7 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import api from '../../services/api';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { colors, spacing, fontSizes, borderRadius } from '../../constants/theme';
 
 interface Question {
@@ -38,9 +39,10 @@ const submitSession = async (payload: {
 };
 
 export default function QuizScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, contentId } = useLocalSearchParams<{ id: string; contentId?: string }>();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [result, setResult] = useState<SessionResult | null>(null);
+  const [nextId, setNextId] = useState<string | null>(null);
 
   const { data: question, isLoading, isError } = useQuery({
     queryKey: ['question', id],
@@ -50,12 +52,30 @@ export default function QuizScreen() {
 
   const mutation = useMutation({
     mutationFn: submitSession,
-    onSuccess: (data) => setResult(data),
+    onSuccess: async (data) => {
+      setResult(data);
+      try {
+        const params = new URLSearchParams({ exclude: id });
+        if (contentId) params.set('content_id', contentId);
+        const { data: qData } = await api.get<{ data: { id: string }[] }>(`/questions?${params}`);
+        setNextId(qData.data[0]?.id ?? null);
+      } catch {
+        setNextId(null);
+      }
+    },
   });
 
   const handleSubmit = () => {
     if (selectedIndex === null || !question) return;
     mutation.mutate({ question_id: question.id, answer_index: selectedIndex });
+  };
+
+  const handleNext = () => {
+    if (!nextId) return;
+    setSelectedIndex(null);
+    setResult(null);
+    setNextId(null);
+    router.replace(`/quiz/${nextId}${contentId ? `?contentId=${contentId}` : ''}`);
   };
 
   const getOptionStyle = (index: number) => {
@@ -74,80 +94,90 @@ export default function QuizScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      <ScreenWrapper applyTopInset={false}>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </ScreenWrapper>
     );
   }
 
   if (isError || !question) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>Could not load question.</Text>
-        <TouchableOpacity style={styles.doneButton} onPress={() => router.back()}>
-          <Text style={styles.doneButtonText}>Go Back</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenWrapper applyTopInset={false}>
+        <View style={styles.centered}>
+          <Text style={styles.errorText}>Could not load question.</Text>
+          <TouchableOpacity style={styles.doneButton} onPress={() => router.back()}>
+            <Text style={styles.doneButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.questionText}>{question.question_text}</Text>
+    <ScreenWrapper applyTopInset={false}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.questionText}>{question.question_text}</Text>
 
-      <View style={styles.optionList}>
-        {question.options.map((opt, index) => (
-          <TouchableOpacity
-            key={index}
-            style={getOptionStyle(index)}
-            onPress={() => { if (!result) setSelectedIndex(index); }}
-            disabled={!!result}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: selectedIndex === index }}
-          >
-            <Text style={styles.optionLabel}>{String.fromCharCode(65 + index)}.</Text>
-            <Text style={getOptionTextStyle(index)}>{opt}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {result ? (
-        <View style={[styles.resultBanner, result.correct ? styles.resultCorrect : styles.resultWrong]}>
-          <Text style={styles.resultTitle}>{result.correct ? '✓ Correct!' : '✗ Incorrect'}</Text>
-          <Text style={styles.explanation}>{result.explanation}</Text>
+        <View style={styles.optionList}>
+          {question.options.map((opt, index) => (
+            <TouchableOpacity
+              key={index}
+              style={getOptionStyle(index)}
+              onPress={() => { if (!result) setSelectedIndex(index); }}
+              disabled={!!result}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: selectedIndex === index }}
+            >
+              <Text style={styles.optionLabel}>{String.fromCharCode(65 + index)}.</Text>
+              <Text style={getOptionTextStyle(index)}>{opt}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
-      ) : null}
 
-      {!result ? (
-        <TouchableOpacity
-          style={[styles.submitButton, selectedIndex === null || mutation.isPending ? styles.submitDisabled : null]}
-          onPress={handleSubmit}
-          disabled={selectedIndex === null || mutation.isPending}
-        >
-          {mutation.isPending ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.submitText}>Submit Answer</Text>
-          )}
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity style={styles.doneButton} onPress={() => router.back()}>
-          <Text style={styles.doneButtonText}>Done</Text>
-        </TouchableOpacity>
-      )}
-    </ScrollView>
+        {result ? (
+          <View style={[styles.resultBanner, result.correct ? styles.resultCorrect : styles.resultWrong]}>
+            <Text style={styles.resultTitle}>{result.correct ? '✓ Correct!' : '✗ Incorrect'}</Text>
+            <Text style={styles.explanation}>{result.explanation}</Text>
+          </View>
+        ) : null}
+
+        {!result ? (
+          <TouchableOpacity
+            style={[styles.submitButton, selectedIndex === null || mutation.isPending ? styles.submitDisabled : null]}
+            onPress={handleSubmit}
+            disabled={selectedIndex === null || mutation.isPending}
+          >
+            {mutation.isPending ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.submitText}>Submit Answer</Text>
+            )}
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.actionRow}>
+            {nextId ? (
+              <TouchableOpacity style={[styles.actionButton, styles.nextButton]} onPress={handleNext}>
+                <Text style={styles.nextButtonText}>Next Question</Text>
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity
+              style={[styles.actionButton, styles.doneButton, nextId ? styles.doneButtonSecondary : null]}
+              onPress={() => router.back()}
+            >
+              <Text style={[styles.doneButtonText, nextId ? styles.doneButtonTextSecondary : null]}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: colors.background, padding: spacing.lg },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    padding: spacing.lg,
-  },
+  container: { flexGrow: 1, padding: spacing.lg },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
   questionText: {
     fontSize: fontSizes.lg,
     fontWeight: '600',
@@ -213,14 +243,21 @@ const styles = StyleSheet.create({
   },
   submitDisabled: { opacity: 0.4 },
   submitText: { color: '#fff', fontSize: fontSizes.md, fontWeight: '600' },
-  doneButton: {
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+  actionRow: { gap: spacing.sm },
+  actionButton: {
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
     alignItems: 'center',
   },
+  nextButton: { backgroundColor: colors.primary },
+  nextButtonText: { color: '#fff', fontSize: fontSizes.md, fontWeight: '600' },
+  doneButton: {
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  doneButtonSecondary: { backgroundColor: 'transparent', borderColor: 'transparent' },
   doneButtonText: { color: colors.text, fontSize: fontSizes.md, fontWeight: '600' },
+  doneButtonTextSecondary: { color: colors.textSecondary },
   errorText: { fontSize: fontSizes.md, color: colors.textSecondary, marginBottom: spacing.lg },
 });

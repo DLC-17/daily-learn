@@ -11,6 +11,8 @@ router.get(
   requireAuth,
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthRequest;
+    const contentId = (req.query['content_id'] as string) || null;
+    const exclude = (req.query['exclude'] as string) || null;
 
     const { rows } = await pool.query(
       `SELECT q.id, q.question_text, q.options::json AS options, q.correct_index,
@@ -21,8 +23,10 @@ router.get(
        FROM questions q
        JOIN content c ON c.id = q.content_id
        WHERE c.user_id = $1
+         AND ($2::text IS NULL OR c.id::text = $2)
+         AND ($3::text IS NULL OR q.id::text != $3)
        ORDER BY priority_score DESC`,
-      [user.id],
+      [user.id, contentId, exclude],
     );
 
     res.json({ data: rows });

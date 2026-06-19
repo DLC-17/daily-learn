@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../services/api';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { colors, spacing, fontSizes, borderRadius } from '../../constants/theme';
 
 interface Session {
@@ -39,6 +40,7 @@ export default function HistoryScreen() {
   const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
 
   return (
+    <ScreenWrapper>
     <View style={styles.container}>
       <Text style={styles.heading}>History</Text>
 
@@ -92,11 +94,12 @@ export default function HistoryScreen() {
         />
       )}
     </View>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, padding: spacing.md },
+  container: { flex: 1, padding: spacing.md },
   heading: {
     fontSize: fontSizes.xxl,
     fontWeight: 'bold',

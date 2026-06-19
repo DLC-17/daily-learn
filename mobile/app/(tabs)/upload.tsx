@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,14 @@ import {
   Alert,
   FlatList,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import api from '../../services/api';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { colors, spacing, fontSizes, borderRadius } from '../../constants/theme';
 
 const stripMarkdown = (text: string): string =>
@@ -153,8 +155,27 @@ export default function UploadScreen() {
 
   const isBusy = uploadMutation.isPending || textMutation.isPending;
 
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const animRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    if (isBusy) {
+      progressAnim.setValue(0);
+      animRef.current = Animated.timing(progressAnim, {
+        toValue: 0.85,
+        duration: 40_000,
+        useNativeDriver: false,
+      });
+      animRef.current.start();
+    } else {
+      animRef.current?.stop();
+      progressAnim.setValue(0);
+    }
+  }, [isBusy]);
+
   return (
-    <View style={styles.container}>
+    <ScreenWrapper>
+      <View style={styles.container}>
       <Text style={styles.heading}>Upload Content</Text>
 
       <View style={styles.tabRow}>
@@ -186,11 +207,7 @@ export default function UploadScreen() {
             onPress={handleFilePick}
             disabled={isBusy}
           >
-            {isBusy ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Choose File (PDF, TXT, DOCX, MD)</Text>
-            )}
+            <Text style={styles.buttonText}>Choose File (PDF, TXT, DOCX, MD)</Text>
           </TouchableOpacity>
         ) : (
           <>
@@ -208,13 +225,29 @@ export default function UploadScreen() {
               onPress={handleTextSubmit}
               disabled={isBusy}
             >
-              {isBusy ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Generate Questions</Text>
-              )}
+              <Text style={styles.buttonText}>Generate Questions</Text>
             </TouchableOpacity>
           </>
+        )}
+
+        {isBusy && (
+          <View style={styles.progressBox}>
+            <Text style={styles.progressLabel}>Generating questions…</Text>
+            <View style={styles.progressTrack}>
+              <Animated.View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: progressAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0%', '100%'],
+                    }),
+                  },
+                ]}
+              />
+            </View>
+            <Text style={styles.progressSub}>This may take a minute for longer content.</Text>
+          </View>
         )}
       </View>
 
@@ -251,12 +284,13 @@ export default function UploadScreen() {
           }
         />
       )}
-    </View>
+      </View>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, padding: spacing.md },
+  container: { flex: 1, padding: spacing.md },
   heading: {
     fontSize: fontSizes.xl,
     fontWeight: 'bold',
@@ -325,4 +359,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.lg,
   },
+  progressBox: { gap: spacing.xs, marginTop: spacing.xs },
+  progressLabel: { fontSize: fontSizes.sm, color: colors.text, fontWeight: '500' },
+  progressTrack: {
+    height: 6,
+    backgroundColor: colors.border,
+    borderRadius: borderRadius.full,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.full,
+  },
+  progressSub: { fontSize: fontSizes.xs, color: colors.textSecondary },
 });

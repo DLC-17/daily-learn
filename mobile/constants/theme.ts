@@ -1,3 +1,5 @@
+export const gradientColors: [string, string] = ['#FFFFFF', '#EEF4FF'];
+
 export const colors = {
   primary: '#4F8EF7',
   primaryDark: '#2563EB',
