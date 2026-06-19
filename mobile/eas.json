@@ -17,13 +17,13 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://daily-learn-api.fly.dev"
+        "EXPO_PUBLIC_API_URL": "https://p01--daily-learn--vd7tkqwg2nmd.code.run"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://daily-learn-api.fly.dev"
+        "EXPO_PUBLIC_API_URL": "https://p01--daily-learn--vd7tkqwg2nmd.code.run"
       }
     }
   },
