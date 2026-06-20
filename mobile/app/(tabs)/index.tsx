@@ -28,9 +28,9 @@ interface QuizSession {
   shown_at: string;
 }
 
-interface ContentItem {
+interface Topic {
   id: string;
-  title: string;
+  name: string;
 }
 
 interface Question {
@@ -47,13 +47,13 @@ const fetchSessions = async (): Promise<QuizSession[]> => {
   return data.data;
 };
 
-const fetchContent = async (): Promise<ContentItem[]> => {
-  const { data } = await api.get<{ data: ContentItem[] }>('/content');
+const fetchTopics = async (): Promise<Topic[]> => {
+  const { data } = await api.get<{ data: Topic[] }>('/topics');
   return data.data;
 };
 
-const fetchNextQuestion = async (contentId: string | null): Promise<Question | null> => {
-  const params = contentId ? `?content_id=${contentId}` : '';
+const fetchNextQuestion = async (topicId: string | null): Promise<Question | null> => {
+  const params = topicId ? `?topic_id=${topicId}` : '';
   const { data } = await api.get<{ data: Question[] }>(`/questions${params}`);
   return data.data[0] ?? null;
 };
@@ -133,7 +133,7 @@ const createStyles = (c: ColorPalette) =>
   });
 
 export default function HomeScreen() {
-  const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
+  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -149,14 +149,14 @@ export default function HomeScreen() {
     refetch: refetchSessions,
   } = useQuery({ queryKey: ['sessions-home'], queryFn: fetchSessions });
 
-  const { data: contentList } = useQuery({
-    queryKey: ['content'],
-    queryFn: fetchContent,
+  const { data: topics } = useQuery({
+    queryKey: ['topics'],
+    queryFn: fetchTopics,
   });
 
   const { data: nextQuestion } = useQuery({
-    queryKey: ['next-question', selectedContentId],
-    queryFn: () => fetchNextQuestion(selectedContentId),
+    queryKey: ['next-question', selectedTopicId],
+    queryFn: () => fetchNextQuestion(selectedTopicId),
   });
 
   const isLoading = profileLoading || sessionsLoading;
@@ -172,7 +172,13 @@ export default function HomeScreen() {
   const dailyGoal = 3;
   const progress = Math.min(todaySessions.length, dailyGoal);
 
-  const topics = [{ id: null, title: 'All' }, ...(contentList ?? [])];
+  const topicItems = [{ id: null as string | null, name: 'All' }, ...(topics ?? [])];
+
+  const startQuiz = () => {
+    if (!nextQuestion) return;
+    const param = selectedTopicId ? `?topicId=${selectedTopicId}` : '';
+    router.push(`/quiz/${nextQuestion.id}${param}`);
+  };
 
   return (
     <ScreenWrapper>
@@ -197,25 +203,25 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            {topics.length > 1 && (
+            {topicItems.length > 1 && (
               <FlatList
-                data={topics}
+                data={topicItems}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 keyExtractor={(item) => item.id ?? 'all'}
                 contentContainerStyle={styles.topicRow}
                 renderItem={({ item }) => {
-                  const active = selectedContentId === item.id;
+                  const active = selectedTopicId === item.id;
                   return (
                     <TouchableOpacity
                       style={[styles.topicChip, active ? styles.topicChipActive : null]}
-                      onPress={() => setSelectedContentId(item.id)}
+                      onPress={() => setSelectedTopicId(item.id)}
                     >
                       <Text
                         style={[styles.topicChipText, active ? styles.topicChipTextActive : null]}
                         numberOfLines={1}
                       >
-                        {item.title}
+                        {item.name}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -225,12 +231,7 @@ export default function HomeScreen() {
 
             <TouchableOpacity
               style={[styles.quizButton, !nextQuestion ? styles.quizButtonDisabled : null]}
-              onPress={() =>
-                nextQuestion &&
-                router.push(
-                  `/quiz/${nextQuestion.id}${selectedContentId ? `?contentId=${selectedContentId}` : ''}`,
-                )
-              }
+              onPress={startQuiz}
               disabled={!nextQuestion}
             >
               <Text style={styles.quizButtonText}>

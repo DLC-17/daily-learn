@@ -1,6 +1,17 @@
 import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  ActivityIndicator,
+  RefreshControl,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
 import { useQuery } from '@tanstack/react-query';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import api from '../../services/api';
 import { useColors } from '../../hooks/useColors';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
@@ -60,10 +71,85 @@ const formatDate = (iso: string): string => {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
 
+const buildPdfHtml = (groups: ContentGroup[]): string => {
+  const groupsHtml = groups
+    .map((group) => {
+      const pct = Math.round((group.correct / group.sessions.length) * 100);
+      const questionsHtml = group.sessions
+        .map((s, qi) => {
+          const optionsHtml = s.options
+            .map((opt, oi) => {
+              const isCorrect = oi === s.correct_index;
+              const isChosen = oi === s.answer_index;
+              const cls = isCorrect ? 'correct' : isChosen && !s.is_correct ? 'wrong' : 'option';
+              const mark = isCorrect ? '✓ ' : isChosen && !s.is_correct ? '✗ ' : '';
+              return `<div class="${cls}">${mark}${opt}</div>`;
+            })
+            .join('');
+          return `
+          <div class="question">
+            <div class="q-num">Q${qi + 1}</div>
+            <div class="q-text">${s.question_text}</div>
+            <div class="options">${optionsHtml}</div>
+            <div class="meta">${formatDate(s.shown_at)} · ${s.is_correct ? '<span class="badge-correct">Correct</span>' : '<span class="badge-wrong">Incorrect</span>'}</div>
+          </div>`;
+        })
+        .join('');
+
+      return `
+      <div class="topic">
+        <h2>${group.contentTitle}</h2>
+        <div class="topic-meta">${group.correct}/${group.sessions.length} correct · ${pct}%</div>
+        ${questionsHtml}
+      </div>`;
+    })
+    .join('');
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 24px; color: #1E293B; }
+  h1 { color: #4F8EF7; font-size: 24px; margin-bottom: 4px; }
+  .export-date { color: #64748B; font-size: 13px; margin-bottom: 32px; }
+  .topic { margin-bottom: 40px; }
+  h2 { color: #1E293B; font-size: 18px; margin-bottom: 4px; border-bottom: 2px solid #4F8EF7; padding-bottom: 6px; }
+  .topic-meta { color: #64748B; font-size: 13px; margin-bottom: 16px; }
+  .question { margin-bottom: 20px; padding: 12px; border: 1px solid #E2E8F0; border-radius: 8px; }
+  .q-num { font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .q-text { font-weight: 600; margin-bottom: 10px; line-height: 1.4; }
+  .options { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+  .option { padding: 6px 10px; border-radius: 4px; font-size: 14px; }
+  .correct { padding: 6px 10px; border-radius: 4px; font-size: 14px; background: #F0FDF4; border-left: 3px solid #22C55E; }
+  .wrong { padding: 6px 10px; border-radius: 4px; font-size: 14px; background: #FEF2F2; border-left: 3px solid #EF4444; }
+  .meta { font-size: 12px; color: #64748B; }
+  .badge-correct { color: #15803D; font-weight: 600; }
+  .badge-wrong { color: #B91C1C; font-weight: 600; }
+</style>
+</head>
+<body>
+  <h1>Daily Learn — Quiz History</h1>
+  <div class="export-date">Exported ${new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+  ${groupsHtml}
+</body>
+</html>`;
+};
+
 const createStyles = (c: ColorPalette) =>
   StyleSheet.create({
     container: { flex: 1, padding: spacing.md },
-    heading: { fontSize: fontSizes.xxl, fontWeight: 'bold', color: c.text, marginBottom: spacing.md },
+    headingRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },
+    heading: { fontSize: fontSizes.xxl, fontWeight: 'bold', color: c.text, flex: 1 },
+    exportButton: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs + 2,
+      borderRadius: borderRadius.full,
+      backgroundColor: c.surface,
+      borderWidth: 1.5,
+      borderColor: c.border,
+    },
+    exportButtonText: { fontSize: fontSizes.xs, fontWeight: '600', color: c.primary },
     summaryRow: {
       flexDirection: 'row',
       backgroundColor: c.surface,
@@ -78,12 +164,7 @@ const createStyles = (c: ColorPalette) =>
     divider: { width: 1, height: 40, backgroundColor: c.border },
     loader: { marginTop: spacing.xl },
     listContent: { paddingBottom: spacing.xl },
-    groupCard: {
-      backgroundColor: c.surface,
-      borderRadius: borderRadius.lg,
-      marginBottom: spacing.sm,
-      overflow: 'hidden',
-    },
+    groupCard: { backgroundColor: c.surface, borderRadius: borderRadius.lg, marginBottom: spacing.sm, overflow: 'hidden' },
     groupHeader: { flexDirection: 'row', alignItems: 'center', padding: spacing.md },
     groupInfo: { flex: 1 },
     groupTitle: { fontSize: fontSizes.md, fontWeight: '600', color: c.text },
@@ -98,14 +179,7 @@ const createStyles = (c: ColorPalette) =>
       borderBottomWidth: 1,
       borderBottomColor: c.border,
     },
-    badge: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginTop: 1,
-    },
+    badge: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginTop: 1 },
     badgeCorrect: { backgroundColor: '#DCFCE7' },
     badgeWrong: { backgroundColor: '#FEE2E2' },
     badgeText: { fontSize: fontSizes.sm, fontWeight: '700' },
@@ -121,6 +195,7 @@ const createStyles = (c: ColorPalette) =>
 
 export default function HistoryScreen() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [exporting, setExporting] = useState(false);
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -143,10 +218,40 @@ export default function HistoryScreen() {
     });
   };
 
+  const handleExport = async () => {
+    if (groups.length === 0) {
+      Alert.alert('Nothing to export', 'Answer some questions first.');
+      return;
+    }
+    setExporting(true);
+    try {
+      const html = buildPdfHtml(groups);
+      const { uri } = await Print.printToFileAsync({ html, base64: false });
+      await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+    } catch {
+      Alert.alert('Export failed', 'Could not generate PDF.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <ScreenWrapper>
       <View style={styles.container}>
-        <Text style={styles.heading}>History</Text>
+        <View style={styles.headingRow}>
+          <Text style={styles.heading}>History</Text>
+          <TouchableOpacity
+            style={styles.exportButton}
+            onPress={handleExport}
+            disabled={exporting || total === 0}
+          >
+            {exporting ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Text style={styles.exportButtonText}>Export PDF</Text>
+            )}
+          </TouchableOpacity>
+        </View>
 
         {total > 0 && (
           <View style={styles.summaryRow}>

@@ -12,6 +12,8 @@ import contentRouter from './routes/content';
 import questionsRouter from './routes/questions';
 import quizRouter from './routes/quiz';
 import userRouter from './routes/user';
+import topicsRouter from './routes/topics';
+import flashcardsRouter from './routes/flashcards';
 
 const app = express();
 
@@ -38,6 +40,8 @@ app.use('/content', contentRouter);
 app.use('/questions', questionsRouter);
 app.use('/quiz', quizRouter);
 app.use('/user', userRouter);
+app.use('/topics', topicsRouter);
+app.use('/flashcards', flashcardsRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Route not found' } });

@@ -20,6 +20,7 @@ interface Question {
   question_text: string;
   options: string[];
   correct_index: number;
+  source_text: string | null;
 }
 
 interface SessionResult {
@@ -96,11 +97,36 @@ const createStyles = (c: ColorPalette) =>
     optionText: { flex: 1, fontSize: fontSizes.md, color: c.text, lineHeight: 22 },
     optionTextSelected: { flex: 1, fontSize: fontSizes.md, color: c.primary, fontWeight: '500', lineHeight: 22 },
     optionTextResult: { flex: 1, fontSize: fontSizes.md, color: c.text, fontWeight: '500', lineHeight: 22 },
-    resultBanner: { borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.lg },
+    resultBanner: { borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.md },
     resultCorrect: { backgroundColor: c.surfaceSuccess, borderWidth: 1, borderColor: c.success },
     resultWrong: { backgroundColor: c.surfaceError, borderWidth: 1, borderColor: c.error },
     resultTitle: { fontSize: fontSizes.md, fontWeight: '700', color: c.text, marginBottom: spacing.xs },
     explanation: { fontSize: fontSizes.sm, color: c.text, lineHeight: 20 },
+    sourceCard: {
+      backgroundColor: c.surface,
+      borderRadius: borderRadius.md,
+      borderWidth: 1,
+      borderColor: c.border,
+      marginBottom: spacing.lg,
+      overflow: 'hidden',
+    },
+    sourceHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    sourceHeaderLabel: { fontSize: fontSizes.xs, fontWeight: '700', color: c.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
+    sourceToggle: { fontSize: fontSizes.xs, color: c.primary, fontWeight: '600' },
+    sourceText: {
+      fontSize: fontSizes.sm,
+      color: c.text,
+      lineHeight: 20,
+      padding: spacing.md,
+    },
     submitButton: {
       backgroundColor: c.primary,
       paddingVertical: spacing.md,
@@ -121,10 +147,11 @@ const createStyles = (c: ColorPalette) =>
   });
 
 export default function QuizScreen() {
-  const { id, contentId } = useLocalSearchParams<{ id: string; contentId?: string }>();
+  const { id, topicId, contentId } = useLocalSearchParams<{ id: string; topicId?: string; contentId?: string }>();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [result, setResult] = useState<SessionResult | null>(null);
   const [nextId, setNextId] = useState<string | null>(null);
+  const [sourceExpanded, setSourceExpanded] = useState(false);
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -138,9 +165,11 @@ export default function QuizScreen() {
     mutationFn: submitSession,
     onSuccess: async (data) => {
       setResult(data);
+      setSourceExpanded(false);
       try {
         const params = new URLSearchParams({ exclude: id });
-        if (contentId) params.set('content_id', contentId);
+        if (topicId) params.set('topic_id', topicId);
+        else if (contentId) params.set('content_id', contentId);
         const { data: qData } = await api.get<{ data: { id: string }[] }>(`/questions?${params}`);
         setNextId(qData.data[0]?.id ?? null);
       } catch {
@@ -159,7 +188,9 @@ export default function QuizScreen() {
     setSelectedIndex(null);
     setResult(null);
     setNextId(null);
-    router.replace(`/quiz/${nextId}${contentId ? `?contentId=${contentId}` : ''}`);
+    setSourceExpanded(false);
+    const param = topicId ? `?topicId=${topicId}` : contentId ? `?contentId=${contentId}` : '';
+    router.replace(`/quiz/${nextId}${param}`);
   };
 
   const getOptionStyle = (index: number) => {
@@ -221,13 +252,42 @@ export default function QuizScreen() {
         </View>
 
         {result ? (
-          <View style={[styles.resultBanner, result.correct ? styles.resultCorrect : styles.resultWrong]}>
-            <Text style={styles.resultTitle}>{result.correct ? '✓ Correct!' : '✗ Incorrect'}</Text>
-            <Text style={styles.explanation}>{result.explanation}</Text>
-          </View>
-        ) : null}
+          <>
+            <View style={[styles.resultBanner, result.correct ? styles.resultCorrect : styles.resultWrong]}>
+              <Text style={styles.resultTitle}>{result.correct ? '✓ Correct!' : '✗ Incorrect'}</Text>
+              <Text style={styles.explanation}>{result.explanation}</Text>
+            </View>
 
-        {!result ? (
+            {question.source_text ? (
+              <View style={styles.sourceCard}>
+                <TouchableOpacity
+                  style={styles.sourceHeader}
+                  onPress={() => setSourceExpanded((v) => !v)}
+                >
+                  <Text style={styles.sourceHeaderLabel}>Source</Text>
+                  <Text style={styles.sourceToggle}>{sourceExpanded ? 'Hide' : 'Show'}</Text>
+                </TouchableOpacity>
+                {sourceExpanded && (
+                  <Text style={styles.sourceText}>{question.source_text}</Text>
+                )}
+              </View>
+            ) : null}
+
+            <View style={styles.actionRow}>
+              {nextId ? (
+                <TouchableOpacity style={[styles.actionButton, styles.nextButton]} onPress={handleNext}>
+                  <Text style={styles.nextButtonText}>Next Question</Text>
+                </TouchableOpacity>
+              ) : null}
+              <TouchableOpacity
+                style={[styles.actionButton, styles.doneButton, nextId ? styles.doneButtonSecondary : null]}
+                onPress={() => router.back()}
+              >
+                <Text style={[styles.doneButtonText, nextId ? styles.doneButtonTextSecondary : null]}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
           <TouchableOpacity
             style={[styles.submitButton, selectedIndex === null || mutation.isPending ? styles.submitDisabled : null]}
             onPress={handleSubmit}
@@ -239,20 +299,6 @@ export default function QuizScreen() {
               <Text style={styles.submitText}>Submit Answer</Text>
             )}
           </TouchableOpacity>
-        ) : (
-          <View style={styles.actionRow}>
-            {nextId ? (
-              <TouchableOpacity style={[styles.actionButton, styles.nextButton]} onPress={handleNext}>
-                <Text style={styles.nextButtonText}>Next Question</Text>
-              </TouchableOpacity>
-            ) : null}
-            <TouchableOpacity
-              style={[styles.actionButton, styles.doneButton, nextId ? styles.doneButtonSecondary : null]}
-              onPress={() => router.back()}
-            >
-              <Text style={[styles.doneButtonText, nextId ? styles.doneButtonTextSecondary : null]}>Done</Text>
-            </TouchableOpacity>
-          </View>
         )}
       </ScrollView>
     </ScreenWrapper>

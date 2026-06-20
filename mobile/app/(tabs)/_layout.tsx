@@ -10,6 +10,7 @@ const TAB_ICONS: Record<string, { active: IoniconName; inactive: IoniconName }> 
   index:    { active: 'home',           inactive: 'home-outline' },
   upload:   { active: 'cloud-upload',   inactive: 'cloud-upload-outline' },
   history:  { active: 'time',           inactive: 'time-outline' },
+  cards:    { active: 'albums',         inactive: 'albums-outline' },
   settings: { active: 'settings',       inactive: 'settings-outline' },
 };
 
@@ -42,6 +43,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="index"    options={{ title: 'Home' }} />
       <Tabs.Screen name="upload"   options={{ title: 'Upload' }} />
       <Tabs.Screen name="history"  options={{ title: 'History' }} />
+      <Tabs.Screen name="cards"    options={{ title: 'Cards' }} />
       <Tabs.Screen name="settings" options={{ title: 'Settings' }} />
     </Tabs>
   );

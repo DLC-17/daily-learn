@@ -9,6 +9,7 @@ import {
   FlatList,
   ActivityIndicator,
   Animated,
+  ScrollView,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -40,10 +41,23 @@ interface ContentItem {
   file_name: string | null;
   created_at: string;
   questions_generated: number;
+  topic_id: string | null;
+  topic_name: string | null;
+}
+
+interface Topic {
+  id: string;
+  name: string;
+  content_count: number;
 }
 
 const fetchContent = async (): Promise<ContentItem[]> => {
   const { data } = await api.get<{ data: ContentItem[] }>('/content');
+  return data.data;
+};
+
+const fetchTopics = async (): Promise<Topic[]> => {
+  const { data } = await api.get<{ data: Topic[] }>('/topics');
   return data.data;
 };
 
@@ -58,7 +72,9 @@ const extractErrorMsg = (err: unknown, fallback: string): string => {
 
 const createStyles = (c: ColorPalette) =>
   StyleSheet.create({
-    container: { flex: 1, padding: spacing.md },
+    container: { flex: 1 },
+    scroll: { flex: 1 },
+    scrollContent: { padding: spacing.md, paddingBottom: spacing.xxl },
     heading: { fontSize: fontSizes.xl, fontWeight: 'bold', color: c.text, marginBottom: spacing.md },
     tabRow: { flexDirection: 'row', marginBottom: spacing.md, gap: spacing.sm },
     tab: {
@@ -89,6 +105,48 @@ const createStyles = (c: ColorPalette) =>
       backgroundColor: c.background,
     },
     textArea: { height: 120 },
+    topicSection: { gap: spacing.xs },
+    topicLabel: { fontSize: fontSizes.sm, fontWeight: '600', color: c.textSecondary },
+    topicRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+    topicChip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: borderRadius.full,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: c.background,
+    },
+    topicChipActive: { borderColor: c.primary, backgroundColor: c.primary },
+    topicChipText: { fontSize: fontSizes.xs, color: c.textSecondary, fontWeight: '500' },
+    topicChipTextActive: { color: '#fff' },
+    newTopicChip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: borderRadius.full,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: c.background,
+    },
+    newTopicChipText: { fontSize: fontSizes.xs, color: c.primary, fontWeight: '600' },
+    newTopicRow: { flexDirection: 'row', gap: spacing.xs, alignItems: 'center' },
+    newTopicInput: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: borderRadius.md,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      fontSize: fontSizes.sm,
+      color: c.text,
+      backgroundColor: c.background,
+    },
+    newTopicSave: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      backgroundColor: c.primary,
+      borderRadius: borderRadius.md,
+    },
+    newTopicSaveText: { fontSize: fontSizes.sm, color: '#fff', fontWeight: '600' },
     button: {
       backgroundColor: c.primary,
       paddingVertical: spacing.md,
@@ -110,6 +168,15 @@ const createStyles = (c: ColorPalette) =>
     contentInfo: { flex: 1 },
     contentTitle: { fontSize: fontSizes.md, color: c.text, fontWeight: '500' },
     contentMeta: { fontSize: fontSizes.xs, color: c.textSecondary, marginTop: 2 },
+    topicBadge: {
+      alignSelf: 'flex-start',
+      marginTop: 4,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+      borderRadius: borderRadius.full,
+      backgroundColor: c.primary + '22',
+    },
+    topicBadgeText: { fontSize: 10, color: c.primary, fontWeight: '600' },
     deleteButton: { padding: spacing.sm },
     deleteText: { color: c.error, fontSize: fontSizes.md },
     emptyText: { color: c.textSecondary, textAlign: 'center', marginTop: spacing.lg },
@@ -130,12 +197,34 @@ export default function UploadScreen() {
   const [title, setTitle] = useState('');
   const [pastedText, setPastedText] = useState('');
   const [activeTab, setActiveTab] = useState<'file' | 'paste'>('file');
+  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
+  const [showNewTopic, setShowNewTopic] = useState(false);
+  const [newTopicName, setNewTopicName] = useState('');
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const { data: contentList, isLoading: contentLoading } = useQuery({
     queryKey: ['content'],
     queryFn: fetchContent,
+  });
+
+  const { data: topics } = useQuery({
+    queryKey: ['topics'],
+    queryFn: fetchTopics,
+  });
+
+  const createTopicMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const { data } = await api.post<{ data: { id: string; name: string } }>('/topics', { name });
+      return data.data;
+    },
+    onSuccess: (topic) => {
+      void queryClient.invalidateQueries({ queryKey: ['topics'] });
+      setSelectedTopicId(topic.id);
+      setNewTopicName('');
+      setShowNewTopic(false);
+    },
+    onError: () => Alert.alert('Error', 'Could not create topic'),
   });
 
   const uploadMutation = useMutation({
@@ -150,13 +239,14 @@ export default function UploadScreen() {
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: ['content'] });
       setTitle('');
+      setSelectedTopicId(null);
       Alert.alert('Done', `Generated ${result.questionsGenerated} questions!`);
     },
     onError: (err) => Alert.alert('Upload Failed', extractErrorMsg(err, 'Upload failed')),
   });
 
   const textMutation = useMutation({
-    mutationFn: async (payload: { title: string; text: string }) => {
+    mutationFn: async (payload: { title: string; text: string; topic_id?: string }) => {
       const { data } = await api.post<{ data: { contentId: string; questionsGenerated: number } }>(
         '/content',
         payload,
@@ -167,6 +257,7 @@ export default function UploadScreen() {
       void queryClient.invalidateQueries({ queryKey: ['content'] });
       setTitle('');
       setPastedText('');
+      setSelectedTopicId(null);
       Alert.alert('Done', `Generated ${result.questionsGenerated} questions!`);
     },
     onError: (err) => Alert.alert('Upload Failed', extractErrorMsg(err, 'Upload failed')),
@@ -195,12 +286,17 @@ export default function UploadScreen() {
 
     if (file.name.toLowerCase().endsWith('.md')) {
       const raw = await FileSystem.readAsStringAsync(file.uri, { encoding: 'utf8' });
-      textMutation.mutate({ title: title.trim() || file.name, text: stripMarkdown(raw) });
+      textMutation.mutate({
+        title: title.trim() || file.name,
+        text: stripMarkdown(raw),
+        ...(selectedTopicId ? { topic_id: selectedTopicId } : {}),
+      });
       return;
     }
 
     const formData = new FormData();
     formData.append('title', title.trim() || file.name);
+    if (selectedTopicId) formData.append('topic_id', selectedTopicId);
     formData.append('file', {
       uri: file.uri,
       name: file.name,
@@ -212,7 +308,11 @@ export default function UploadScreen() {
   const handleTextSubmit = () => {
     if (!title.trim()) { Alert.alert('Missing title', 'Please enter a title.'); return; }
     if (!pastedText.trim()) { Alert.alert('Missing content', 'Please paste some text.'); return; }
-    textMutation.mutate({ title: title.trim(), text: pastedText.trim() });
+    textMutation.mutate({
+      title: title.trim(),
+      text: pastedText.trim(),
+      ...(selectedTopicId ? { topic_id: selectedTopicId } : {}),
+    });
   };
 
   const confirmDelete = (item: ContentItem) => {
@@ -224,6 +324,12 @@ export default function UploadScreen() {
         { text: 'Delete', style: 'destructive', onPress: () => deleteMutation.mutate(item.id) },
       ],
     );
+  };
+
+  const handleSaveNewTopic = () => {
+    const name = newTopicName.trim();
+    if (!name) return;
+    createTopicMutation.mutate(name);
   };
 
   const isBusy = uploadMutation.isPending || textMutation.isPending;
@@ -249,93 +355,141 @@ export default function UploadScreen() {
   return (
     <ScreenWrapper>
       <View style={styles.container}>
-        <Text style={styles.heading}>Upload Content</Text>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+          <Text style={styles.heading}>Upload Content</Text>
 
-        <View style={styles.tabRow}>
-          {(['file', 'paste'] as const).map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              style={[styles.tab, activeTab === tab ? styles.tabActive : null]}
-              onPress={() => setActiveTab(tab)}
-            >
-              <Text style={[styles.tabText, activeTab === tab ? styles.tabTextActive : null]}>
-                {tab === 'file' ? 'File' : 'Paste Text'}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+          <View style={styles.tabRow}>
+            {(['file', 'paste'] as const).map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.tab, activeTab === tab ? styles.tabActive : null]}
+                onPress={() => setActiveTab(tab)}
+              >
+                <Text style={[styles.tabText, activeTab === tab ? styles.tabTextActive : null]}>
+                  {tab === 'file' ? 'File' : 'Paste Text'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-        <View style={styles.formCard}>
-          <TextInput
-            style={styles.input}
-            placeholder="Title (optional for file upload)"
-            placeholderTextColor={colors.textSecondary}
-            value={title}
-            onChangeText={setTitle}
-          />
+          <View style={styles.formCard}>
+            <TextInput
+              style={styles.input}
+              placeholder="Title (optional for file upload)"
+              placeholderTextColor={colors.textSecondary}
+              value={title}
+              onChangeText={setTitle}
+            />
 
-          {activeTab === 'file' ? (
-            <TouchableOpacity
-              style={[styles.button, isBusy ? styles.buttonDisabled : null]}
-              onPress={handleFilePick}
-              disabled={isBusy}
-            >
-              <Text style={styles.buttonText}>Choose File (PDF, TXT, DOCX, MD)</Text>
-            </TouchableOpacity>
-          ) : (
-            <>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Paste your notes or article here…"
-                placeholderTextColor={colors.textSecondary}
-                value={pastedText}
-                onChangeText={setPastedText}
-                multiline
-                textAlignVertical="top"
-              />
+            {/* Topic selector */}
+            <View style={styles.topicSection}>
+              <Text style={styles.topicLabel}>Topic (optional)</Text>
+              <View style={styles.topicRow}>
+                {(topics ?? []).map((t) => (
+                  <TouchableOpacity
+                    key={t.id}
+                    style={[styles.topicChip, selectedTopicId === t.id ? styles.topicChipActive : null]}
+                    onPress={() => setSelectedTopicId(selectedTopicId === t.id ? null : t.id)}
+                  >
+                    <Text style={[styles.topicChipText, selectedTopicId === t.id ? styles.topicChipTextActive : null]}>
+                      {t.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+                {!showNewTopic && (
+                  <TouchableOpacity style={styles.newTopicChip} onPress={() => setShowNewTopic(true)}>
+                    <Text style={styles.newTopicChipText}>+ New</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              {showNewTopic && (
+                <View style={styles.newTopicRow}>
+                  <TextInput
+                    style={styles.newTopicInput}
+                    placeholder="Topic name"
+                    placeholderTextColor={colors.textSecondary}
+                    value={newTopicName}
+                    onChangeText={setNewTopicName}
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={handleSaveNewTopic}
+                  />
+                  <TouchableOpacity style={styles.newTopicSave} onPress={handleSaveNewTopic}>
+                    <Text style={styles.newTopicSaveText}>Save</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => { setShowNewTopic(false); setNewTopicName(''); }}>
+                    <Text style={{ color: colors.textSecondary, paddingHorizontal: spacing.xs }}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            {activeTab === 'file' ? (
               <TouchableOpacity
                 style={[styles.button, isBusy ? styles.buttonDisabled : null]}
-                onPress={handleTextSubmit}
+                onPress={handleFilePick}
                 disabled={isBusy}
               >
-                <Text style={styles.buttonText}>Generate Questions</Text>
+                <Text style={styles.buttonText}>Choose File (PDF, TXT, DOCX, MD)</Text>
               </TouchableOpacity>
-            </>
-          )}
-
-          {isBusy && (
-            <View style={styles.progressBox}>
-              <Text style={styles.progressLabel}>Generating questions…</Text>
-              <View style={styles.progressTrack}>
-                <Animated.View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: progressAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0%', '100%'],
-                      }),
-                    },
-                  ]}
+            ) : (
+              <>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  placeholder="Paste your notes or article here…"
+                  placeholderTextColor={colors.textSecondary}
+                  value={pastedText}
+                  onChangeText={setPastedText}
+                  multiline
+                  textAlignVertical="top"
                 />
+                <TouchableOpacity
+                  style={[styles.button, isBusy ? styles.buttonDisabled : null]}
+                  onPress={handleTextSubmit}
+                  disabled={isBusy}
+                >
+                  <Text style={styles.buttonText}>Generate Questions</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {isBusy && (
+              <View style={styles.progressBox}>
+                <Text style={styles.progressLabel}>Generating questions…</Text>
+                <View style={styles.progressTrack}>
+                  <Animated.View
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: progressAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0%', '100%'],
+                        }),
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.progressSub}>This may take a minute for longer content.</Text>
               </View>
-              <Text style={styles.progressSub}>This may take a minute for longer content.</Text>
-            </View>
-          )}
-        </View>
+            )}
+          </View>
 
-        <Text style={styles.sectionTitle}>Your Content</Text>
+          <Text style={styles.sectionTitle}>Your Content</Text>
 
-        {contentLoading ? (
-          <ActivityIndicator color={colors.primary} style={styles.loader} />
-        ) : (
-          <FlatList
-            data={contentList ?? []}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <View style={styles.contentRow}>
+          {contentLoading ? (
+            <ActivityIndicator color={colors.primary} style={styles.loader} />
+          ) : (contentList ?? []).length === 0 ? (
+            <Text style={styles.emptyText}>No content yet. Upload something to get started.</Text>
+          ) : (
+            (contentList ?? []).map((item) => (
+              <View key={item.id} style={styles.contentRow}>
                 <View style={styles.contentInfo}>
                   <Text style={styles.contentTitle} numberOfLines={1}>{item.title}</Text>
+                  {item.topic_name && (
+                    <View style={styles.topicBadge}>
+                      <Text style={styles.topicBadgeText}>{item.topic_name}</Text>
+                    </View>
+                  )}
                   <Text style={styles.contentMeta}>
                     {item.questions_generated} questions ·{' '}
                     {new Date(item.created_at).toLocaleDateString()}
@@ -349,14 +503,9 @@ export default function UploadScreen() {
                   <Text style={styles.deleteText}>✕</Text>
                 </TouchableOpacity>
               </View>
-            )}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>
-                No content yet. Upload something to get started.
-              </Text>
-            }
-          />
-        )}
+            ))
+          )}
+        </ScrollView>
       </View>
     </ScreenWrapper>
   );

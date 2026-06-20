@@ -21,12 +21,14 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthRequest;
     const { rows } = await pool.query(
-      `SELECT c.id, c.title, c.file_name, c.created_at,
+      `SELECT c.id, c.title, c.file_name, c.created_at, c.topic_id,
+              t.name AS topic_name,
               COUNT(q.id)::int AS questions_generated
        FROM content c
+       LEFT JOIN topics t ON t.id = c.topic_id
        LEFT JOIN questions q ON q.content_id = c.id
        WHERE c.user_id = $1
-       GROUP BY c.id
+       GROUP BY c.id, t.name
        ORDER BY c.created_at DESC`,
       [user.id],
     );
@@ -40,6 +42,9 @@ router.post(
   upload.single('file'),
   asyncHandler(async (req: Request, res: Response) => {
     const { user } = req as AuthRequest;
+    const body = req.body as Record<string, string>;
+
+    const topicId = body['topic_id']?.trim() || null;
 
     let rawText: string;
     let fileName: string | undefined;
@@ -48,14 +53,14 @@ router.post(
     if (req.file) {
       rawText = await parseFile(req.file.buffer, req.file.mimetype);
       fileName = req.file.originalname;
-      title = (req.body as Record<string, string>)['title'] ?? req.file.originalname;
+      title = body['title'] ?? req.file.originalname;
     } else {
-      const body = CreateContentSchema.safeParse(req.body);
-      if (!body.success || !body.data.text) {
+      const parsed = CreateContentSchema.safeParse(req.body);
+      if (!parsed.success || !parsed.data.text) {
         throw new AppError(400, 'Provide either a file upload or title + text', 'VALIDATION_ERROR');
       }
-      rawText = body.data.text;
-      title = body.data.title;
+      rawText = parsed.data.text;
+      title = parsed.data.title;
     }
 
     if (!rawText.trim()) throw new AppError(422, 'No text content found', 'EMPTY_CONTENT');
@@ -67,8 +72,8 @@ router.post(
     const {
       rows: [contentRow],
     } = await pool.query(
-      'INSERT INTO content (user_id, title, raw_text, file_name, chunk_count) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-      [user.id, title, rawText, fileName ?? null, chunks.length],
+      'INSERT INTO content (user_id, title, raw_text, file_name, chunk_count, topic_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+      [user.id, title, rawText, fileName ?? null, chunks.length, topicId],
     );
     const contentId = (contentRow as { id: string }).id;
 
@@ -76,11 +81,14 @@ router.post(
     let questionsGenerated = 0;
     for (let i = 0; i < chunks.length; i++) {
       if (i > 0) await sleep(4_000);
-      const questions = await generateQuestionsFromChunk(chunks[i]!);
+      const chunk = chunks[i]!;
+      const questions = await generateQuestionsFromChunk(chunk);
       for (const q of questions) {
         await pool.query(
-          'INSERT INTO questions (content_id, question_text, options, correct_index, explanation) VALUES ($1, $2, $3, $4, $5)',
-          [contentId, q.question_text, JSON.stringify(q.options), q.correct_index, q.explanation ?? null],
+          `INSERT INTO questions
+             (content_id, question_text, options, correct_index, explanation, source_text)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [contentId, q.question_text, JSON.stringify(q.options), q.correct_index, q.explanation ?? null, chunk],
         );
         questionsGenerated++;
       }
