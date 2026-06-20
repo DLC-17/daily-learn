@@ -8,12 +8,14 @@ import {
   TouchableOpacity,
   FlatList,
 } from 'react-native';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import api from '../../services/api';
+import { useColors } from '../../hooks/useColors';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
-import { colors, spacing, fontSizes, borderRadius } from '../../constants/theme';
+import { spacing, fontSizes, borderRadius } from '../../constants/theme';
+import type { ColorPalette } from '../../constants/theme';
 
 interface UserProfile {
   streak_count: number;
@@ -58,8 +60,82 @@ const fetchNextQuestion = async (contentId: string | null): Promise<Question | n
 
 const todayStr = () => new Date().toISOString().split('T')[0]!;
 
+const createStyles = (c: ColorPalette) =>
+  StyleSheet.create({
+    flex: { flex: 1 },
+    container: { padding: spacing.lg, paddingBottom: spacing.xxl },
+    heading: { fontSize: fontSizes.xxl, fontWeight: 'bold', color: c.text, marginBottom: spacing.lg },
+    loader: { marginTop: spacing.xl },
+    streakCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      backgroundColor: c.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+    },
+    streakEmoji: { fontSize: 40 },
+    streakCount: { fontSize: 36, fontWeight: 'bold', color: c.text },
+    streakLabel: { fontSize: fontSizes.sm, color: c.textSecondary },
+    topicRow: { paddingBottom: spacing.md, gap: spacing.sm },
+    topicChip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs + 2,
+      borderRadius: borderRadius.full,
+      backgroundColor: c.surface,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      maxWidth: 160,
+    },
+    topicChipActive: { backgroundColor: c.primary, borderColor: c.primary },
+    topicChipText: { fontSize: fontSizes.sm, color: c.textSecondary, fontWeight: '500' },
+    topicChipTextActive: { color: '#fff' },
+    quizButton: {
+      backgroundColor: c.primary,
+      borderRadius: borderRadius.lg,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+    },
+    quizButtonDisabled: { opacity: 0.4 },
+    quizButtonText: { color: '#fff', fontSize: fontSizes.md, fontWeight: '600' },
+    section: {
+      backgroundColor: c.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    sectionTitle: { fontSize: fontSizes.md, fontWeight: '600', color: c.text, marginBottom: spacing.sm },
+    progressRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+    progressDot: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: c.border,
+      borderWidth: 2,
+      borderColor: c.border,
+    },
+    progressDotFilled: { backgroundColor: c.primary, borderColor: c.primary },
+    progressLabel: { fontSize: fontSizes.sm, color: c.textSecondary, marginLeft: spacing.xs },
+    hint: { fontSize: fontSizes.sm, color: c.textSecondary, lineHeight: 20 },
+    hintSuccess: { color: c.success, fontWeight: '500' },
+    statsRow: { flexDirection: 'row', gap: spacing.sm },
+    statCard: {
+      flex: 1,
+      backgroundColor: c.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      alignItems: 'center',
+    },
+    statValue: { fontSize: fontSizes.xl, fontWeight: 'bold', color: c.text },
+    statLabel: { fontSize: fontSizes.xs, color: c.textSecondary, marginTop: 2 },
+  });
+
 export default function HomeScreen() {
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const {
     data: profile,
@@ -135,7 +211,8 @@ export default function HomeScreen() {
                       style={[styles.topicChip, active ? styles.topicChipActive : null]}
                       onPress={() => setSelectedContentId(item.id)}
                     >
-                      <Text style={[styles.topicChipText, active ? styles.topicChipTextActive : null]}
+                      <Text
+                        style={[styles.topicChipText, active ? styles.topicChipTextActive : null]}
                         numberOfLines={1}
                       >
                         {item.title}
@@ -203,89 +280,3 @@ export default function HomeScreen() {
     </ScreenWrapper>
   );
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  container: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  heading: {
-    fontSize: fontSizes.xxl,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: spacing.lg,
-  },
-  loader: { marginTop: spacing.xl },
-  streakCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  streakEmoji: { fontSize: 40 },
-  streakCount: { fontSize: 36, fontWeight: 'bold', color: colors.text },
-  streakLabel: { fontSize: fontSizes.sm, color: colors.textSecondary },
-  topicRow: { paddingBottom: spacing.md, gap: spacing.sm },
-  topicChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    maxWidth: 160,
-  },
-  topicChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  topicChipText: { fontSize: fontSizes.sm, color: colors.textSecondary, fontWeight: '500' },
-  topicChipTextActive: { color: '#fff' },
-  quizButton: {
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  quizButtonDisabled: { opacity: 0.4 },
-  quizButtonText: { color: '#fff', fontSize: fontSizes.md, fontWeight: '600' },
-  section: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  sectionTitle: {
-    fontSize: fontSizes.md,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  progressDot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.border,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  progressDotFilled: { backgroundColor: colors.primary, borderColor: colors.primary },
-  progressLabel: { fontSize: fontSizes.sm, color: colors.textSecondary, marginLeft: spacing.xs },
-  hint: { fontSize: fontSizes.sm, color: colors.textSecondary, lineHeight: 20 },
-  hintSuccess: { color: colors.success, fontWeight: '500' },
-  statsRow: { flexDirection: 'row', gap: spacing.sm },
-  statCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  statValue: { fontSize: fontSizes.xl, fontWeight: 'bold', color: colors.text },
-  statLabel: { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 2 },
-});

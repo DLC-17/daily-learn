@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
-import { colors } from '../../constants/theme';
+import { useColors } from '../../hooks/useColors';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -17,6 +17,7 @@ export default function TabsLayout() {
   const accessToken = useAuthStore((s) => s.accessToken);
   const hydrated = useAuthStore((s) => s.hydrated);
   const router = useRouter();
+  const colors = useColors();
 
   useEffect(() => {
     if (hydrated && !accessToken) {

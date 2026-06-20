@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../services/api';
+import { useColors } from '../../hooks/useColors';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
-import { colors, spacing, fontSizes, borderRadius } from '../../constants/theme';
+import { spacing, fontSizes, borderRadius } from '../../constants/theme';
+import type { ColorPalette } from '../../constants/theme';
 
 interface Session {
   id: string;
@@ -58,8 +60,69 @@ const formatDate = (iso: string): string => {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
 
+const createStyles = (c: ColorPalette) =>
+  StyleSheet.create({
+    container: { flex: 1, padding: spacing.md },
+    heading: { fontSize: fontSizes.xxl, fontWeight: 'bold', color: c.text, marginBottom: spacing.md },
+    summaryRow: {
+      flexDirection: 'row',
+      backgroundColor: c.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+      alignItems: 'center',
+    },
+    summaryItem: { flex: 1, alignItems: 'center' },
+    summaryValue: { fontSize: fontSizes.xl, fontWeight: 'bold', color: c.text },
+    summaryLabel: { fontSize: fontSizes.xs, color: c.textSecondary, marginTop: 2 },
+    divider: { width: 1, height: 40, backgroundColor: c.border },
+    loader: { marginTop: spacing.xl },
+    listContent: { paddingBottom: spacing.xl },
+    groupCard: {
+      backgroundColor: c.surface,
+      borderRadius: borderRadius.lg,
+      marginBottom: spacing.sm,
+      overflow: 'hidden',
+    },
+    groupHeader: { flexDirection: 'row', alignItems: 'center', padding: spacing.md },
+    groupInfo: { flex: 1 },
+    groupTitle: { fontSize: fontSizes.md, fontWeight: '600', color: c.text },
+    groupMeta: { fontSize: fontSizes.xs, color: c.textSecondary, marginTop: 2 },
+    chevron: { fontSize: fontSizes.xs, color: c.textSecondary, marginLeft: spacing.sm },
+    sessionList: { borderTopWidth: 1, borderTopColor: c.border },
+    sessionRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      padding: spacing.md,
+      gap: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    badge: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 1,
+    },
+    badgeCorrect: { backgroundColor: '#DCFCE7' },
+    badgeWrong: { backgroundColor: '#FEE2E2' },
+    badgeText: { fontSize: fontSizes.sm, fontWeight: '700' },
+    sessionContent: { flex: 1 },
+    questionText: { fontSize: fontSizes.sm, color: c.text, lineHeight: 20, marginBottom: 4 },
+    answerHint: { fontSize: fontSizes.xs, color: c.error, lineHeight: 18, marginBottom: 4 },
+    meta: { fontSize: fontSizes.xs, color: c.textSecondary },
+    empty: { alignItems: 'center', paddingHorizontal: spacing.xl },
+    emptyContainer: { flex: 1, justifyContent: 'center' },
+    emptyText: { fontSize: fontSizes.lg, fontWeight: '600', color: c.text, marginBottom: spacing.sm, textAlign: 'center' },
+    emptySubtext: { fontSize: fontSizes.sm, color: c.textSecondary, textAlign: 'center', lineHeight: 20 },
+  });
+
 export default function HistoryScreen() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const { data: sessions, isLoading, refetch } = useQuery({
     queryKey: ['sessions-history'],
@@ -160,65 +223,3 @@ export default function HistoryScreen() {
     </ScreenWrapper>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: spacing.md },
-  heading: { fontSize: fontSizes.xxl, fontWeight: 'bold', color: colors.text, marginBottom: spacing.md },
-  summaryRow: {
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    alignItems: 'center',
-  },
-  summaryItem: { flex: 1, alignItems: 'center' },
-  summaryValue: { fontSize: fontSizes.xl, fontWeight: 'bold', color: colors.text },
-  summaryLabel: { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 2 },
-  divider: { width: 1, height: 40, backgroundColor: colors.border },
-  loader: { marginTop: spacing.xl },
-  listContent: { paddingBottom: spacing.xl },
-  groupCard: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    marginBottom: spacing.sm,
-    overflow: 'hidden',
-  },
-  groupHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-  },
-  groupInfo: { flex: 1 },
-  groupTitle: { fontSize: fontSizes.md, fontWeight: '600', color: colors.text },
-  groupMeta: { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 2 },
-  chevron: { fontSize: fontSizes.xs, color: colors.textSecondary, marginLeft: spacing.sm },
-  sessionList: { borderTopWidth: 1, borderTopColor: colors.border },
-  sessionRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: spacing.md,
-    gap: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  badge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 1,
-  },
-  badgeCorrect: { backgroundColor: '#DCFCE7' },
-  badgeWrong: { backgroundColor: '#FEE2E2' },
-  badgeText: { fontSize: fontSizes.sm, fontWeight: '700' },
-  sessionContent: { flex: 1 },
-  questionText: { fontSize: fontSizes.sm, color: colors.text, lineHeight: 20, marginBottom: 4 },
-  answerHint: { fontSize: fontSizes.xs, color: colors.error, lineHeight: 18, marginBottom: 4 },
-  meta: { fontSize: fontSizes.xs, color: colors.textSecondary },
-  empty: { alignItems: 'center', paddingHorizontal: spacing.xl },
-  emptyContainer: { flex: 1, justifyContent: 'center' },
-  emptyText: { fontSize: fontSizes.lg, fontWeight: '600', color: colors.text, marginBottom: spacing.sm, textAlign: 'center' },
-  emptySubtext: { fontSize: fontSizes.sm, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
-});

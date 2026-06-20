@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,8 +15,10 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import api from '../../services/api';
+import { useColors } from '../../hooks/useColors';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
-import { colors, spacing, fontSizes, borderRadius } from '../../constants/theme';
+import { spacing, fontSizes, borderRadius } from '../../constants/theme';
+import type { ColorPalette } from '../../constants/theme';
 
 const stripMarkdown = (text: string): string =>
   text
@@ -54,11 +56,82 @@ const extractErrorMsg = (err: unknown, fallback: string): string => {
   return fallback;
 };
 
+const createStyles = (c: ColorPalette) =>
+  StyleSheet.create({
+    container: { flex: 1, padding: spacing.md },
+    heading: { fontSize: fontSizes.xl, fontWeight: 'bold', color: c.text, marginBottom: spacing.md },
+    tabRow: { flexDirection: 'row', marginBottom: spacing.md, gap: spacing.sm },
+    tab: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      borderRadius: borderRadius.md,
+      backgroundColor: c.surface,
+    },
+    tabActive: { backgroundColor: c.primary },
+    tabText: { fontSize: fontSizes.sm, color: c.textSecondary, fontWeight: '500' },
+    tabTextActive: { color: '#fff' },
+    formCard: {
+      backgroundColor: c.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      gap: spacing.sm,
+      marginBottom: spacing.lg,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: borderRadius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      fontSize: fontSizes.md,
+      color: c.text,
+      backgroundColor: c.background,
+    },
+    textArea: { height: 120 },
+    button: {
+      backgroundColor: c.primary,
+      paddingVertical: spacing.md,
+      borderRadius: borderRadius.md,
+      alignItems: 'center',
+    },
+    buttonDisabled: { opacity: 0.6 },
+    buttonText: { color: '#fff', fontSize: fontSizes.md, fontWeight: '600' },
+    sectionTitle: { fontSize: fontSizes.md, fontWeight: '600', color: c.text, marginBottom: spacing.sm },
+    loader: { marginTop: spacing.lg },
+    contentRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.surface,
+      borderRadius: borderRadius.md,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    contentInfo: { flex: 1 },
+    contentTitle: { fontSize: fontSizes.md, color: c.text, fontWeight: '500' },
+    contentMeta: { fontSize: fontSizes.xs, color: c.textSecondary, marginTop: 2 },
+    deleteButton: { padding: spacing.sm },
+    deleteText: { color: c.error, fontSize: fontSizes.md },
+    emptyText: { color: c.textSecondary, textAlign: 'center', marginTop: spacing.lg },
+    progressBox: { gap: spacing.xs, marginTop: spacing.xs },
+    progressLabel: { fontSize: fontSizes.sm, color: c.text, fontWeight: '500' },
+    progressTrack: {
+      height: 6,
+      backgroundColor: c.border,
+      borderRadius: borderRadius.full,
+      overflow: 'hidden',
+    },
+    progressFill: { height: '100%', backgroundColor: c.primary, borderRadius: borderRadius.full },
+    progressSub: { fontSize: fontSizes.xs, color: c.textSecondary },
+  });
+
 export default function UploadScreen() {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
   const [pastedText, setPastedText] = useState('');
   const [activeTab, setActiveTab] = useState<'file' | 'paste'>('file');
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const { data: contentList, isLoading: contentLoading } = useQuery({
     queryKey: ['content'],
@@ -176,201 +249,115 @@ export default function UploadScreen() {
   return (
     <ScreenWrapper>
       <View style={styles.container}>
-      <Text style={styles.heading}>Upload Content</Text>
+        <Text style={styles.heading}>Upload Content</Text>
 
-      <View style={styles.tabRow}>
-        {(['file', 'paste'] as const).map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab ? styles.tabActive : null]}
-            onPress={() => setActiveTab(tab)}
-          >
-            <Text style={[styles.tabText, activeTab === tab ? styles.tabTextActive : null]}>
-              {tab === 'file' ? 'File' : 'Paste Text'}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+        <View style={styles.tabRow}>
+          {(['file', 'paste'] as const).map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tab, activeTab === tab ? styles.tabActive : null]}
+              onPress={() => setActiveTab(tab)}
+            >
+              <Text style={[styles.tabText, activeTab === tab ? styles.tabTextActive : null]}>
+                {tab === 'file' ? 'File' : 'Paste Text'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-      <View style={styles.formCard}>
-        <TextInput
-          style={styles.input}
-          placeholder="Title (optional for file upload)"
-          placeholderTextColor={colors.textSecondary}
-          value={title}
-          onChangeText={setTitle}
-        />
+        <View style={styles.formCard}>
+          <TextInput
+            style={styles.input}
+            placeholder="Title (optional for file upload)"
+            placeholderTextColor={colors.textSecondary}
+            value={title}
+            onChangeText={setTitle}
+          />
 
-        {activeTab === 'file' ? (
-          <TouchableOpacity
-            style={[styles.button, isBusy ? styles.buttonDisabled : null]}
-            onPress={handleFilePick}
-            disabled={isBusy}
-          >
-            <Text style={styles.buttonText}>Choose File (PDF, TXT, DOCX, MD)</Text>
-          </TouchableOpacity>
-        ) : (
-          <>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Paste your notes or article here…"
-              placeholderTextColor={colors.textSecondary}
-              value={pastedText}
-              onChangeText={setPastedText}
-              multiline
-              textAlignVertical="top"
-            />
+          {activeTab === 'file' ? (
             <TouchableOpacity
               style={[styles.button, isBusy ? styles.buttonDisabled : null]}
-              onPress={handleTextSubmit}
+              onPress={handleFilePick}
               disabled={isBusy}
             >
-              <Text style={styles.buttonText}>Generate Questions</Text>
+              <Text style={styles.buttonText}>Choose File (PDF, TXT, DOCX, MD)</Text>
             </TouchableOpacity>
-          </>
-        )}
-
-        {isBusy && (
-          <View style={styles.progressBox}>
-            <Text style={styles.progressLabel}>Generating questions…</Text>
-            <View style={styles.progressTrack}>
-              <Animated.View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: progressAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ['0%', '100%'],
-                    }),
-                  },
-                ]}
+          ) : (
+            <>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Paste your notes or article here…"
+                placeholderTextColor={colors.textSecondary}
+                value={pastedText}
+                onChangeText={setPastedText}
+                multiline
+                textAlignVertical="top"
               />
-            </View>
-            <Text style={styles.progressSub}>This may take a minute for longer content.</Text>
-          </View>
-        )}
-      </View>
-
-      <Text style={styles.sectionTitle}>Your Content</Text>
-
-      {contentLoading ? (
-        <ActivityIndicator color={colors.primary} style={styles.loader} />
-      ) : (
-        <FlatList
-          data={contentList ?? []}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View style={styles.contentRow}>
-              <View style={styles.contentInfo}>
-                <Text style={styles.contentTitle} numberOfLines={1}>{item.title}</Text>
-                <Text style={styles.contentMeta}>
-                  {item.questions_generated} questions ·{' '}
-                  {new Date(item.created_at).toLocaleDateString()}
-                </Text>
-              </View>
               <TouchableOpacity
-                onPress={() => confirmDelete(item)}
-                style={styles.deleteButton}
-                accessibilityLabel={`Delete ${item.title}`}
+                style={[styles.button, isBusy ? styles.buttonDisabled : null]}
+                onPress={handleTextSubmit}
+                disabled={isBusy}
               >
-                <Text style={styles.deleteText}>✕</Text>
+                <Text style={styles.buttonText}>Generate Questions</Text>
               </TouchableOpacity>
+            </>
+          )}
+
+          {isBusy && (
+            <View style={styles.progressBox}>
+              <Text style={styles.progressLabel}>Generating questions…</Text>
+              <View style={styles.progressTrack}>
+                <Animated.View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: progressAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0%', '100%'],
+                      }),
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={styles.progressSub}>This may take a minute for longer content.</Text>
             </View>
           )}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              No content yet. Upload something to get started.
-            </Text>
-          }
-        />
-      )}
+        </View>
+
+        <Text style={styles.sectionTitle}>Your Content</Text>
+
+        {contentLoading ? (
+          <ActivityIndicator color={colors.primary} style={styles.loader} />
+        ) : (
+          <FlatList
+            data={contentList ?? []}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <View style={styles.contentRow}>
+                <View style={styles.contentInfo}>
+                  <Text style={styles.contentTitle} numberOfLines={1}>{item.title}</Text>
+                  <Text style={styles.contentMeta}>
+                    {item.questions_generated} questions ·{' '}
+                    {new Date(item.created_at).toLocaleDateString()}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => confirmDelete(item)}
+                  style={styles.deleteButton}
+                  accessibilityLabel={`Delete ${item.title}`}
+                >
+                  <Text style={styles.deleteText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>
+                No content yet. Upload something to get started.
+              </Text>
+            }
+          />
+        )}
       </View>
     </ScreenWrapper>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: spacing.md },
-  heading: {
-    fontSize: fontSizes.xl,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  tabRow: { flexDirection: 'row', marginBottom: spacing.md, gap: spacing.sm },
-  tab: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surface,
-  },
-  tabActive: { backgroundColor: colors.primary },
-  tabText: { fontSize: fontSizes.sm, color: colors.textSecondary, fontWeight: '500' },
-  tabTextActive: { color: '#fff' },
-  formCard: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontSize: fontSizes.md,
-    color: colors.text,
-    backgroundColor: colors.background,
-  },
-  textArea: { height: 120 },
-  button: {
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#fff', fontSize: fontSizes.md, fontWeight: '600' },
-  sectionTitle: {
-    fontSize: fontSizes.md,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  loader: { marginTop: spacing.lg },
-  contentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  contentInfo: { flex: 1 },
-  contentTitle: { fontSize: fontSizes.md, color: colors.text, fontWeight: '500' },
-  contentMeta: { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 2 },
-  deleteButton: { padding: spacing.sm },
-  deleteText: { color: colors.error, fontSize: fontSizes.md },
-  emptyText: {
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.lg,
-  },
-  progressBox: { gap: spacing.xs, marginTop: spacing.xs },
-  progressLabel: { fontSize: fontSizes.sm, color: colors.text, fontWeight: '500' },
-  progressTrack: {
-    height: 6,
-    backgroundColor: colors.border,
-    borderRadius: borderRadius.full,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.full,
-  },
-  progressSub: { fontSize: fontSizes.xs, color: colors.textSecondary },
-});

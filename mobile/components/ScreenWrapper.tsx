@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { gradientColors } from '../constants/theme';
+import { useGradientColors } from '../hooks/useColors';
 
 interface Props {
   children: ReactNode;
@@ -11,6 +11,7 @@ interface Props {
 
 export function ScreenWrapper({ children, applyTopInset = true }: Props) {
   const insets = useSafeAreaInsets();
+  const gradientColors = useGradientColors();
   return (
     <LinearGradient
       colors={gradientColors}

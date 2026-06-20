@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,10 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import api from '../../services/api';
+import { useColors } from '../../hooks/useColors';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
-import { colors, spacing, fontSizes, borderRadius } from '../../constants/theme';
+import { spacing, fontSizes, borderRadius } from '../../constants/theme';
+import type { ColorPalette } from '../../constants/theme';
 
 interface Question {
   id: string;
@@ -38,11 +40,93 @@ const submitSession = async (payload: {
   return data.data;
 };
 
+const createStyles = (c: ColorPalette) =>
+  StyleSheet.create({
+    container: { flexGrow: 1, padding: spacing.lg },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
+    questionText: {
+      fontSize: fontSizes.lg,
+      fontWeight: '600',
+      color: c.text,
+      lineHeight: 28,
+      marginBottom: spacing.xl,
+    },
+    optionList: { gap: spacing.sm, marginBottom: spacing.xl },
+    option: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: c.surface,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      borderRadius: borderRadius.md,
+      padding: spacing.md,
+      gap: spacing.sm,
+    },
+    optionSelected: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: c.surface,
+      borderWidth: 1.5,
+      borderColor: c.primary,
+      borderRadius: borderRadius.md,
+      padding: spacing.md,
+      gap: spacing.sm,
+    },
+    optionCorrect: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: c.surfaceSuccess,
+      borderWidth: 1.5,
+      borderColor: c.success,
+      borderRadius: borderRadius.md,
+      padding: spacing.md,
+      gap: spacing.sm,
+    },
+    optionWrong: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: c.surfaceError,
+      borderWidth: 1.5,
+      borderColor: c.error,
+      borderRadius: borderRadius.md,
+      padding: spacing.md,
+      gap: spacing.sm,
+    },
+    optionLabel: { fontSize: fontSizes.md, fontWeight: '700', color: c.primary, width: 20, marginTop: 1 },
+    optionText: { flex: 1, fontSize: fontSizes.md, color: c.text, lineHeight: 22 },
+    optionTextSelected: { flex: 1, fontSize: fontSizes.md, color: c.primary, fontWeight: '500', lineHeight: 22 },
+    optionTextResult: { flex: 1, fontSize: fontSizes.md, color: c.text, fontWeight: '500', lineHeight: 22 },
+    resultBanner: { borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.lg },
+    resultCorrect: { backgroundColor: c.surfaceSuccess, borderWidth: 1, borderColor: c.success },
+    resultWrong: { backgroundColor: c.surfaceError, borderWidth: 1, borderColor: c.error },
+    resultTitle: { fontSize: fontSizes.md, fontWeight: '700', color: c.text, marginBottom: spacing.xs },
+    explanation: { fontSize: fontSizes.sm, color: c.text, lineHeight: 20 },
+    submitButton: {
+      backgroundColor: c.primary,
+      paddingVertical: spacing.md,
+      borderRadius: borderRadius.md,
+      alignItems: 'center',
+    },
+    submitDisabled: { opacity: 0.4 },
+    submitText: { color: '#fff', fontSize: fontSizes.md, fontWeight: '600' },
+    actionRow: { gap: spacing.sm },
+    actionButton: { paddingVertical: spacing.md, borderRadius: borderRadius.md, alignItems: 'center' },
+    nextButton: { backgroundColor: c.primary },
+    nextButtonText: { color: '#fff', fontSize: fontSizes.md, fontWeight: '600' },
+    doneButton: { backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.border },
+    doneButtonSecondary: { backgroundColor: 'transparent', borderColor: 'transparent' },
+    doneButtonText: { color: c.text, fontSize: fontSizes.md, fontWeight: '600' },
+    doneButtonTextSecondary: { color: c.textSecondary },
+    errorText: { fontSize: fontSizes.md, color: c.textSecondary, marginBottom: spacing.lg },
+  });
+
 export default function QuizScreen() {
   const { id, contentId } = useLocalSearchParams<{ id: string; contentId?: string }>();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [result, setResult] = useState<SessionResult | null>(null);
   const [nextId, setNextId] = useState<string | null>(null);
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const { data: question, isLoading, isError } = useQuery({
     queryKey: ['question', id],
@@ -174,90 +258,3 @@ export default function QuizScreen() {
     </ScreenWrapper>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: spacing.lg },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
-  questionText: {
-    fontSize: fontSizes.lg,
-    fontWeight: '600',
-    color: colors.text,
-    lineHeight: 28,
-    marginBottom: spacing.xl,
-  },
-  optionList: { gap: spacing.sm, marginBottom: spacing.xl },
-  option: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  optionSelected: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  optionCorrect: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#F0FDF4',
-    borderWidth: 1.5,
-    borderColor: colors.success,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  optionWrong: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1.5,
-    borderColor: colors.error,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  optionLabel: { fontSize: fontSizes.md, fontWeight: '700', color: colors.primary, width: 20, marginTop: 1 },
-  optionText: { flex: 1, fontSize: fontSizes.md, color: colors.text, lineHeight: 22 },
-  optionTextSelected: { flex: 1, fontSize: fontSizes.md, color: colors.primary, fontWeight: '500', lineHeight: 22 },
-  optionTextResult: { flex: 1, fontSize: fontSizes.md, color: colors.text, fontWeight: '500', lineHeight: 22 },
-  resultBanner: { borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.lg },
-  resultCorrect: { backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: colors.success },
-  resultWrong: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: colors.error },
-  resultTitle: { fontSize: fontSizes.md, fontWeight: '700', color: colors.text, marginBottom: spacing.xs },
-  explanation: { fontSize: fontSizes.sm, color: colors.text, lineHeight: 20 },
-  submitButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-  },
-  submitDisabled: { opacity: 0.4 },
-  submitText: { color: '#fff', fontSize: fontSizes.md, fontWeight: '600' },
-  actionRow: { gap: spacing.sm },
-  actionButton: {
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-  },
-  nextButton: { backgroundColor: colors.primary },
-  nextButtonText: { color: '#fff', fontSize: fontSizes.md, fontWeight: '600' },
-  doneButton: {
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-  },
-  doneButtonSecondary: { backgroundColor: 'transparent', borderColor: 'transparent' },
-  doneButtonText: { color: colors.text, fontSize: fontSizes.md, fontWeight: '600' },
-  doneButtonTextSecondary: { color: colors.textSecondary },
-  errorText: { fontSize: fontSizes.md, color: colors.textSecondary, marginBottom: spacing.lg },
-});

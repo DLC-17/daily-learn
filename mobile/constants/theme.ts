@@ -1,6 +1,19 @@
-export const gradientColors: [string, string] = ['#FFFFFF', '#EEF4FF'];
+export type ColorPalette = {
+  primary: string;
+  primaryDark: string;
+  background: string;
+  surface: string;
+  text: string;
+  textSecondary: string;
+  border: string;
+  success: string;
+  error: string;
+  warning: string;
+  surfaceSuccess: string;
+  surfaceError: string;
+};
 
-export const colors = {
+export const colors: ColorPalette = {
   primary: '#4F8EF7',
   primaryDark: '#2563EB',
   background: '#F8FAFC',
@@ -11,7 +24,27 @@ export const colors = {
   success: '#22C55E',
   error: '#EF4444',
   warning: '#F59E0B',
-} as const;
+  surfaceSuccess: '#F0FDF4',
+  surfaceError: '#FEF2F2',
+};
+
+export const darkColors: ColorPalette = {
+  primary: '#4F8EF7',
+  primaryDark: '#2563EB',
+  background: '#0F172A',
+  surface: '#1E293B',
+  text: '#F1F5F9',
+  textSecondary: '#94A3B8',
+  border: '#334155',
+  success: '#22C55E',
+  error: '#EF4444',
+  warning: '#F59E0B',
+  surfaceSuccess: '#052E16',
+  surfaceError: '#450A0A',
+};
+
+export const gradientColors: [string, string] = ['#FFFFFF', '#EEF4FF'];
+export const darkGradientColors: [string, string] = ['#0F172A', '#162032'];
 
 export const spacing = {
   xs: 4,

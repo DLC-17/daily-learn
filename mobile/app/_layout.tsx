@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
+import { useThemeStore } from '../store/themeStore';
 import { setupNotifications } from '../services/notifications';
 
 const queryClient = new QueryClient({
@@ -13,11 +14,13 @@ const queryClient = new QueryClient({
 
 export default function RootLayout() {
   const hydrate = useAuthStore((s) => s.hydrate);
+  const hydrateTheme = useThemeStore((s) => s.hydrate);
 
   useEffect(() => {
     hydrate().catch(console.error);
+    hydrateTheme().catch(console.error);
     setupNotifications().catch(console.error);
-  }, [hydrate]);
+  }, [hydrate, hydrateTheme]);
 
   return (
     <SafeAreaProvider>
