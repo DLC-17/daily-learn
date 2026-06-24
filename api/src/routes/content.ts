@@ -79,18 +79,24 @@ router.post(
 
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     let questionsGenerated = 0;
+    let lastGenerationError: string | null = null;
     for (let i = 0; i < chunks.length; i++) {
       if (i > 0) await sleep(4_000);
       const chunk = chunks[i]!;
-      const questions = await generateQuestionsFromChunk(chunk);
-      for (const q of questions) {
-        await pool.query(
-          `INSERT INTO questions
-             (content_id, question_text, options, correct_index, explanation, source_text)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [contentId, q.question_text, JSON.stringify(q.options), q.correct_index, q.explanation ?? null, chunk],
-        );
-        questionsGenerated++;
+      try {
+        const questions = await generateQuestionsFromChunk(chunk);
+        for (const q of questions) {
+          await pool.query(
+            `INSERT INTO questions
+               (content_id, question_text, options, correct_index, explanation, source_text)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [contentId, q.question_text, JSON.stringify(q.options), q.correct_index, q.explanation ?? null, chunk],
+          );
+          questionsGenerated++;
+        }
+      } catch (err) {
+        lastGenerationError = err instanceof Error ? err.message : String(err);
+        console.error(`[content] chunk ${i + 1}/${chunks.length} failed:`, lastGenerationError);
       }
     }
 
@@ -98,7 +104,10 @@ router.post(
 
     if (questionsGenerated === 0) {
       await pool.query('DELETE FROM content WHERE id = $1', [contentId]);
-      throw new AppError(422, 'Could not generate questions from provided content', 'GENERATION_FAILED');
+      const msg = lastGenerationError
+        ? `AI generation failed: ${lastGenerationError}`
+        : 'Could not generate questions from provided content';
+      throw new AppError(422, msg, 'GENERATION_FAILED');
     }
 
     res.status(201).json({ data: { contentId, questionsGenerated } });

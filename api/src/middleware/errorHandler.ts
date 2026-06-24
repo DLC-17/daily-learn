@@ -7,8 +7,10 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction,
 ): void => {
-  if (process.env.NODE_ENV !== 'production') {
-    console.error(err.stack);
+  if (err instanceof AppError) {
+    if (err.statusCode >= 500) console.error('[error]', err.stack);
+  } else {
+    console.error('[error]', err.stack);
   }
 
   if (err instanceof AppError) {

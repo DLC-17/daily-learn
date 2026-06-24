@@ -54,6 +54,7 @@ export default function UploadPage() {
       const { data } = await api.post<{ data: { contentId: string; questionsGenerated: number } }>(
         '/content',
         formData,
+        { timeout: 300_000 },
       );
       return data.data;
     },
@@ -72,6 +73,7 @@ export default function UploadPage() {
       const { data } = await api.post<{ data: { contentId: string; questionsGenerated: number } }>(
         '/content',
         payload,
+        { timeout: 300_000 },
       );
       return data.data;
     },

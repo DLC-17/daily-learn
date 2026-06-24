@@ -40,6 +40,7 @@ Return ONLY a JSON object with a "flashcards" key containing an array. Each obje
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export const generateQuestionsFromChunk = async (chunk: string): Promise<GeneratedQuestion[]> => {
+  let lastErr: Error | undefined;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const completion = await getClient().chat.completions.create({
@@ -57,13 +58,12 @@ export const generateQuestionsFromChunk = async (chunk: string): Promise<Generat
       const parsed = JSON.parse(text) as { questions: GeneratedQuestion[] };
       const questions = parsed.questions;
       if (Array.isArray(questions) && questions.length > 0) return questions;
+      return [];
     } catch (err) {
-      const is429 =
-        err instanceof Error && (err.message.includes('429') || err.message.includes('quota') || err.message.includes('rate'));
-      if (attempt === 2) {
-        console.error('[groq] chunk failed after 3 attempts:', err instanceof Error ? err.message : String(err));
-        return [];
-      }
+      lastErr = err instanceof Error ? err : new Error(String(err));
+      const is429 = lastErr.message.includes('429') || lastErr.message.includes('quota') || lastErr.message.includes('rate');
+      console.error(`[groq] questions attempt ${attempt + 1} failed:`, lastErr.message);
+      if (attempt === 2) throw lastErr;
       await sleep(is429 ? (attempt + 1) * 15_000 : (attempt + 1) * 5_000);
     }
   }
@@ -71,6 +71,7 @@ export const generateQuestionsFromChunk = async (chunk: string): Promise<Generat
 };
 
 export const generateFlashcardsFromChunk = async (chunk: string): Promise<GeneratedFlashcard[]> => {
+  let lastErr: Error | undefined;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const completion = await getClient().chat.completions.create({
@@ -88,13 +89,12 @@ export const generateFlashcardsFromChunk = async (chunk: string): Promise<Genera
       const parsed = JSON.parse(text) as { flashcards: GeneratedFlashcard[] };
       const cards = parsed.flashcards;
       if (Array.isArray(cards) && cards.length > 0) return cards;
+      return [];
     } catch (err) {
-      const is429 =
-        err instanceof Error && (err.message.includes('429') || err.message.includes('quota') || err.message.includes('rate'));
-      if (attempt === 2) {
-        console.error('[groq] flashcard chunk failed after 3 attempts:', err instanceof Error ? err.message : String(err));
-        return [];
-      }
+      lastErr = err instanceof Error ? err : new Error(String(err));
+      const is429 = lastErr.message.includes('429') || lastErr.message.includes('quota') || lastErr.message.includes('rate');
+      console.error(`[groq] flashcards attempt ${attempt + 1} failed:`, lastErr.message);
+      if (attempt === 2) throw lastErr;
       await sleep(is429 ? (attempt + 1) * 15_000 : (attempt + 1) * 5_000);
     }
   }
