@@ -88,19 +88,19 @@ const buildPdfHtml = (groups: ContentGroup[]): string => {
 <title>Daily Learn — Quiz History</title>
 <style>
   body { font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 24px; color: #1E293B; }
-  h1 { color: #4F8EF7; font-size: 24px; margin-bottom: 4px; }
-  .export-date { color: #64748B; font-size: 13px; margin-bottom: 32px; }
+  h1 { color: #5B8EF7; font-size: 22px; margin-bottom: 4px; }
+  .export-date { color: #64748B; font-size: 12px; margin-bottom: 32px; }
   .topic { margin-bottom: 40px; }
-  h2 { color: #1E293B; font-size: 18px; margin-bottom: 4px; border-bottom: 2px solid #4F8EF7; padding-bottom: 6px; }
-  .topic-meta { color: #64748B; font-size: 13px; margin-bottom: 16px; }
-  .question { margin-bottom: 20px; padding: 12px; border: 1px solid #E2E8F0; border-radius: 8px; }
-  .q-num { font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-  .q-text { font-weight: 600; margin-bottom: 10px; line-height: 1.4; }
+  h2 { color: #1E293B; font-size: 16px; margin-bottom: 4px; border-bottom: 2px solid #5B8EF7; padding-bottom: 6px; }
+  .topic-meta { color: #64748B; font-size: 12px; margin-bottom: 16px; }
+  .question { margin-bottom: 16px; padding: 12px; border: 1px solid #E2E8F0; border-radius: 8px; }
+  .q-num { font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .q-text { font-weight: 600; margin-bottom: 10px; line-height: 1.5; font-size: 14px; }
   .options { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
-  .option { padding: 6px 10px; border-radius: 4px; font-size: 14px; }
-  .correct { padding: 6px 10px; border-radius: 4px; font-size: 14px; background: #F0FDF4; border-left: 3px solid #22C55E; }
-  .wrong { padding: 6px 10px; border-radius: 4px; font-size: 14px; background: #FEF2F2; border-left: 3px solid #EF4444; }
-  .meta { font-size: 12px; color: #64748B; }
+  .option { padding: 5px 8px; border-radius: 4px; font-size: 13px; color: #475569; }
+  .correct { padding: 5px 8px; border-radius: 4px; font-size: 13px; background: #F0FDF4; border-left: 3px solid #22C55E; }
+  .wrong { padding: 5px 8px; border-radius: 4px; font-size: 13px; background: #FEF2F2; border-left: 3px solid #EF4444; }
+  .meta { font-size: 11px; color: #94A3B8; }
   .badge-correct { color: #15803D; font-weight: 600; }
   .badge-wrong { color: #B91C1C; font-weight: 600; }
 </style>
@@ -151,89 +151,94 @@ export default function HistoryPage() {
 
   return (
     <div className="p-8 max-w-2xl">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-[#1E293B]">History</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-xl font-semibold text-[#E8E8EC] tracking-tight">History</h1>
         <div className="flex gap-3 items-center">
           <button
             onClick={handleExport}
             disabled={total === 0}
-            className="px-3 py-1.5 rounded-full text-xs font-semibold text-[#4F8EF7] bg-white border-[1.5px] border-[#E2E8F0] hover:border-[#4F8EF7] transition disabled:opacity-40"
+            className="text-xs text-[#76769A] hover:text-[#5B8EF7] transition disabled:opacity-30"
           >
             Export PDF
           </button>
-          <button onClick={() => void refetch()} className="text-sm text-[#4F8EF7] hover:underline">
+          <button onClick={() => void refetch()} className="text-xs text-[#76769A] hover:text-[#5B8EF7] transition">
             Refresh
           </button>
         </div>
       </div>
 
       {total > 0 && (
-        <div className="bg-white rounded-2xl p-5 border border-[#E2E8F0] flex mb-4">
+        <div className="bg-[#131317] rounded-xl p-4 border border-[#222228] flex mb-4">
           <div className="flex-1 text-center">
-            <p className="text-2xl font-bold text-[#1E293B]">{total}</p>
-            <p className="text-xs text-[#64748B] mt-0.5">Answered</p>
+            <p className="text-xl font-bold text-[#E8E8EC]">{total}</p>
+            <p className="text-xs text-[#76769A] mt-0.5">Answered</p>
           </div>
-          <div className="w-px bg-[#E2E8F0] mx-4" />
+          <div className="w-px bg-[#222228] mx-4" />
           <div className="flex-1 text-center">
-            <p className="text-2xl font-bold text-[#1E293B]">{accuracy}%</p>
-            <p className="text-xs text-[#64748B] mt-0.5">Correct</p>
+            <p className="text-xl font-bold text-[#E8E8EC]">{accuracy}%</p>
+            <p className="text-xs text-[#76769A] mt-0.5">Correct</p>
           </div>
         </div>
       )}
 
       {isLoading ? (
-        <div className="flex justify-center mt-16">
-          <div className="w-8 h-8 border-2 border-[#4F8EF7] border-t-transparent rounded-full animate-spin" />
+        <div className="flex justify-center mt-20">
+          <div className="w-5 h-5 border-2 border-[#5B8EF7] border-t-transparent rounded-full animate-spin" />
         </div>
       ) : groups.length === 0 ? (
-        <div className="text-center mt-16">
-          <p className="text-lg font-semibold text-[#1E293B] mb-2">No quiz sessions yet.</p>
-          <p className="text-sm text-[#64748B]">Answer questions to see your history here.</p>
+        <div className="text-center mt-20">
+          <p className="text-sm font-medium text-[#E8E8EC] mb-2">No history yet</p>
+          <p className="text-xs text-[#76769A]">Answer questions to see them here.</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5">
           {groups.map((group) => {
             const isOpen = expanded.has(group.contentId);
             const pct = Math.round((group.correct / group.sessions.length) * 100);
             return (
-              <div key={group.contentId} className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
+              <div
+                key={group.contentId}
+                className="bg-[#131317] rounded-xl border border-[#222228] overflow-hidden"
+              >
                 <button
-                  className="w-full flex items-center px-4 py-3 text-left hover:bg-[#F8FAFC] transition"
+                  className="w-full flex items-center px-4 py-3.5 text-left hover:bg-[#1A1A20] transition"
                   onClick={() => toggleExpand(group.contentId)}
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[#1E293B] truncate">{group.contentTitle}</p>
-                    <p className="text-xs text-[#64748B] mt-0.5">
+                    <p className="text-sm font-medium text-[#E8E8EC] truncate">{group.contentTitle}</p>
+                    <p className="text-xs text-[#76769A] mt-0.5">
                       {group.correct}/{group.sessions.length} correct · {pct}%
                     </p>
                   </div>
-                  <span className="text-xs text-[#64748B] ml-3">{isOpen ? '▲' : '▼'}</span>
+                  <span className="text-xs text-[#48486A] ml-3">{isOpen ? '▲' : '▼'}</span>
                 </button>
 
                 {isOpen && (
-                  <div className="border-t border-[#E2E8F0]">
+                  <div className="border-t border-[#1A1A20]">
                     {group.sessions.map((s) => (
                       <div
                         key={s.id}
-                        className="flex items-start gap-3 px-4 py-3 border-b border-[#E2E8F0] last:border-b-0"
+                        className="flex items-start gap-3 px-4 py-3 border-b border-[#1A1A20] last:border-b-0"
                       >
                         <div
-                          className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-sm font-bold ${
-                            s.is_correct ? 'bg-[#DCFCE7] text-[#16A34A]' : 'bg-[#FEE2E2] text-[#DC2626]'
+                          className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold ${
+                            s.is_correct
+                              ? 'bg-[#071610] text-[#22C55E]'
+                              : 'bg-[#180808] text-[#EF4444]'
                           }`}
                         >
                           {s.is_correct ? '✓' : '✗'}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-[#1E293B] leading-5 mb-1">{s.question_text}</p>
+                          <p className="text-xs text-[#E8E8EC] leading-5 mb-1">{s.question_text}</p>
                           {!s.is_correct && s.options.length > 0 && (
-                            <div className="text-xs text-[#EF4444] leading-4 mb-1">
-                              <span>Your answer: {s.options[s.answer_index] ?? '—'}</span>
+                            <div className="text-xs text-[#EF4444] leading-4 mb-1 opacity-80">
+                              <span>Yours: {s.options[s.answer_index] ?? '—'}</span>
                               <br />
-                              <span>Correct: {s.options[s.correct_index] ?? '—'}</span>
+                              <span className="text-[#22C55E]">Correct: {s.options[s.correct_index] ?? '—'}</span>
                             </div>
                           )}
-                          <p className="text-xs text-[#64748B]">{formatDate(s.shown_at)}</p>
+                          <p className="text-xs text-[#48486A]">{formatDate(s.shown_at)}</p>
                         </div>
                       </div>
                     ))}

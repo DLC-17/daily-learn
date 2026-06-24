@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Geist } from 'next/font/google';
 import './globals.css';
 import Providers from '@/components/Providers';
 
-const inter = Inter({ subsets: ['latin'] });
+const geist = Geist({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'Daily Learn',
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-[#F8FAFC] min-h-screen`}>
+      <body className={`${geist.className} bg-[#09090C] text-[#E8E8EC] min-h-screen`}>
         <Providers>{children}</Providers>
       </body>
     </html>

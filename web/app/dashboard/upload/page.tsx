@@ -62,7 +62,7 @@ export default function UploadPage() {
       void queryClient.invalidateQueries({ queryKey: ['content'] });
       setTitle('');
       if (fileRef.current) fileRef.current.value = '';
-      setSuccess(`Generated ${result.questionsGenerated} questions!`);
+      setSuccess(`Generated ${result.questionsGenerated} questions`);
       setError('');
     },
     onError: (err) => { setError(extractErrorMsg(err, 'Upload failed')); setSuccess(''); },
@@ -80,7 +80,7 @@ export default function UploadPage() {
       void queryClient.invalidateQueries({ queryKey: ['content'] });
       setTitle('');
       setPastedText('');
-      setSuccess(`Generated ${result.questionsGenerated} questions!`);
+      setSuccess(`Generated ${result.questionsGenerated} questions`);
       setError('');
     },
     onError: (err) => { setError(extractErrorMsg(err, 'Upload failed')); setSuccess(''); },
@@ -119,17 +119,18 @@ export default function UploadPage() {
 
   return (
     <div className="p-8 max-w-2xl">
-      <h1 className="text-3xl font-bold text-[#1E293B] mb-6">Upload Content</h1>
+      <h1 className="text-xl font-semibold text-[#E8E8EC] tracking-tight mb-8">Upload</h1>
 
-      <div className="flex gap-2 mb-4">
+      {/* Tabs */}
+      <div className="flex gap-1 mb-4 bg-[#131317] rounded-xl p-1 border border-[#222228]">
         {(['file', 'paste'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition ${
+            className={`flex-1 py-2 rounded-lg text-xs font-medium transition ${
               activeTab === tab
-                ? 'bg-[#4F8EF7] text-white'
-                : 'bg-white text-[#64748B] border border-[#E2E8F0] hover:bg-[#F8FAFC]'
+                ? 'bg-[#1A1A20] text-[#E8E8EC]'
+                : 'text-[#76769A] hover:text-[#E8E8EC]'
             }`}
           >
             {tab === 'file' ? 'File' : 'Paste Text'}
@@ -137,13 +138,13 @@ export default function UploadPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl p-5 border border-[#E2E8F0] mb-6">
+      <div className="bg-[#131317] rounded-xl p-5 border border-[#222228] mb-6">
         <input
           type="text"
           placeholder="Title (optional for file upload)"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-full border border-[#E2E8F0] rounded-xl px-4 py-3 text-[#1E293B] placeholder-[#64748B] outline-none focus:ring-2 focus:ring-[#4F8EF7] mb-3 transition text-base"
+          className="w-full bg-[#09090C] border border-[#222228] rounded-xl px-4 py-3 text-[#E8E8EC] placeholder-[#48486A] outline-none focus:ring-1 focus:ring-[#5B8EF7] mb-3 transition text-sm"
         />
 
         {activeTab === 'file' ? (
@@ -159,10 +160,10 @@ export default function UploadPage() {
             />
             <label
               htmlFor="file-input"
-              className={`flex items-center justify-center w-full py-3 rounded-xl font-semibold text-white transition ${
+              className={`flex items-center justify-center w-full py-3 rounded-xl text-sm font-semibold text-white transition ${
                 isBusy
-                  ? 'bg-[#4F8EF7] opacity-60 cursor-not-allowed'
-                  : 'bg-[#4F8EF7] hover:bg-[#2563EB] cursor-pointer'
+                  ? 'bg-[#5B8EF7] opacity-40 cursor-not-allowed'
+                  : 'bg-[#5B8EF7] hover:bg-[#3A6EDB] cursor-pointer'
               }`}
             >
               {isBusy ? (
@@ -171,7 +172,7 @@ export default function UploadPage() {
                   Processing…
                 </span>
               ) : (
-                'Choose File (PDF, TXT, DOCX, MD)'
+                'Choose File — PDF, TXT, DOCX, MD'
               )}
             </label>
           </>
@@ -182,12 +183,12 @@ export default function UploadPage() {
               value={pastedText}
               onChange={(e) => setPastedText(e.target.value)}
               rows={6}
-              className="w-full border border-[#E2E8F0] rounded-xl px-4 py-3 text-[#1E293B] placeholder-[#64748B] outline-none focus:ring-2 focus:ring-[#4F8EF7] resize-none mb-3 transition text-base"
+              className="w-full bg-[#09090C] border border-[#222228] rounded-xl px-4 py-3 text-[#E8E8EC] placeholder-[#48486A] outline-none focus:ring-1 focus:ring-[#5B8EF7] resize-none mb-3 transition text-sm"
             />
             <button
               type="submit"
               disabled={isBusy}
-              className="w-full py-3 rounded-xl font-semibold text-white bg-[#4F8EF7] hover:bg-[#2563EB] transition disabled:opacity-60"
+              className="w-full py-3 rounded-xl text-sm font-semibold text-white bg-[#5B8EF7] hover:bg-[#3A6EDB] transition disabled:opacity-40"
             >
               {isBusy ? (
                 <span className="flex items-center justify-center gap-2">
@@ -201,30 +202,32 @@ export default function UploadPage() {
           </form>
         )}
 
-        {error && <p className="text-sm text-[#EF4444] mt-3">{error}</p>}
-        {success && <p className="text-sm text-[#22C55E] mt-3 font-medium">{success}</p>}
+        {error && <p className="text-xs text-[#EF4444] mt-3">{error}</p>}
+        {success && <p className="text-xs text-[#22C55E] mt-3">{success}</p>}
       </div>
 
-      <h2 className="text-base font-semibold text-[#1E293B] mb-3">Your Content</h2>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-semibold text-[#76769A] uppercase tracking-wider">Your Content</p>
+      </div>
 
       {contentLoading ? (
-        <div className="flex justify-center mt-8">
-          <div className="w-6 h-6 border-2 border-[#4F8EF7] border-t-transparent rounded-full animate-spin" />
+        <div className="flex justify-center mt-10">
+          <div className="w-5 h-5 border-2 border-[#5B8EF7] border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (contentList ?? []).length === 0 ? (
-        <p className="text-sm text-[#64748B] text-center mt-8">
-          No content yet. Upload something to get started.
+        <p className="text-xs text-[#48486A] text-center mt-10">
+          Nothing uploaded yet.
         </p>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5">
           {(contentList ?? []).map((item) => (
             <div
               key={item.id}
-              className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-[#E2E8F0]"
+              className="flex items-center justify-between bg-[#131317] rounded-xl px-4 py-3 border border-[#222228]"
             >
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[#1E293B] truncate">{item.title}</p>
-                <p className="text-xs text-[#64748B] mt-0.5">
+                <p className="text-sm font-medium text-[#E8E8EC] truncate">{item.title}</p>
+                <p className="text-xs text-[#76769A] mt-0.5">
                   {item.questions_generated} questions ·{' '}
                   {new Date(item.created_at).toLocaleDateString()}
                 </p>
@@ -233,7 +236,7 @@ export default function UploadPage() {
                 onClick={() => {
                   if (window.confirm(`Delete "${item.title}"?`)) deleteMutation.mutate(item.id);
                 }}
-                className="ml-3 text-[#EF4444] hover:opacity-70 text-lg leading-none transition"
+                className="ml-4 text-xs text-[#48486A] hover:text-[#EF4444] transition"
                 aria-label={`Delete ${item.title}`}
               >
                 ✕

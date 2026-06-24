@@ -58,12 +58,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#09090C] flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
-        <h1 className="text-4xl font-bold text-[#1E293B] text-center mb-1">Daily Learn</h1>
-        <p className="text-sm text-[#64748B] text-center mb-8">
-          Build better habits, one question at a time.
-        </p>
+        <div className="mb-10 text-center">
+          <h1 className="text-3xl font-semibold text-[#E8E8EC] tracking-tight mb-1.5">Daily Learn</h1>
+          <p className="text-sm text-[#76769A]">Build better habits, one question at a time.</p>
+        </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <div>
@@ -73,11 +73,11 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
-              className={`w-full bg-white border rounded-xl px-4 py-3 text-[#1E293B] placeholder-[#64748B] outline-none focus:ring-2 focus:ring-[#4F8EF7] transition text-base ${
-                errors.email ? 'border-[#EF4444]' : 'border-[#E2E8F0]'
+              className={`w-full bg-[#131317] border rounded-xl px-4 py-3 text-[#E8E8EC] placeholder-[#48486A] outline-none focus:ring-1 focus:ring-[#5B8EF7] transition text-sm ${
+                errors.email ? 'border-[#EF4444]' : 'border-[#222228]'
               }`}
             />
-            {errors.email && <p className="text-xs text-[#EF4444] mt-1">{errors.email}</p>}
+            {errors.email && <p className="text-xs text-[#EF4444] mt-1.5">{errors.email}</p>}
           </div>
 
           <div>
@@ -87,25 +87,35 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
-              className={`w-full bg-white border rounded-xl px-4 py-3 text-[#1E293B] placeholder-[#64748B] outline-none focus:ring-2 focus:ring-[#4F8EF7] transition text-base ${
-                errors.password ? 'border-[#EF4444]' : 'border-[#E2E8F0]'
+              className={`w-full bg-[#131317] border rounded-xl px-4 py-3 text-[#E8E8EC] placeholder-[#48486A] outline-none focus:ring-1 focus:ring-[#5B8EF7] transition text-sm ${
+                errors.password ? 'border-[#EF4444]' : 'border-[#222228]'
               }`}
             />
-            {errors.password && <p className="text-xs text-[#EF4444] mt-1">{errors.password}</p>}
+            {errors.password && <p className="text-xs text-[#EF4444] mt-1.5">{errors.password}</p>}
           </div>
 
-          {serverError && <p className="text-sm text-[#EF4444] text-center">{serverError}</p>}
+          {serverError && <p className="text-xs text-[#EF4444] text-center">{serverError}</p>}
 
           <button
             type="submit"
             disabled={loading}
-            className="bg-[#4F8EF7] text-white font-semibold py-3 rounded-xl mt-1 hover:bg-[#2563EB] transition disabled:opacity-60"
+            className="bg-[#5B8EF7] text-white text-sm font-semibold py-3 rounded-xl mt-1 hover:bg-[#3A6EDB] transition disabled:opacity-50"
           >
-            {loading ? 'Signing in…' : 'Sign In'}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Signing in…
+              </span>
+            ) : (
+              'Sign In'
+            )}
           </button>
 
-          <Link href="/register" className="text-sm text-[#4F8EF7] text-center py-2 hover:underline">
-            Don't have an account? Register
+          <Link
+            href="/register"
+            className="text-xs text-[#76769A] text-center py-2 hover:text-[#5B8EF7] transition"
+          >
+            Don't have an account? <span className="text-[#5B8EF7]">Register</span>
           </Link>
         </form>
       </div>

@@ -66,12 +66,12 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#09090C] flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
-        <h1 className="text-4xl font-bold text-[#1E293B] text-center mb-1">Create Account</h1>
-        <p className="text-sm text-[#64748B] text-center mb-8">
-          Start your daily learning journey.
-        </p>
+        <div className="mb-10 text-center">
+          <h1 className="text-3xl font-semibold text-[#E8E8EC] tracking-tight mb-1.5">Create Account</h1>
+          <p className="text-sm text-[#76769A]">Start your daily learning journey.</p>
+        </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <div>
@@ -81,11 +81,11 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
-              className={`w-full bg-white border rounded-xl px-4 py-3 text-[#1E293B] placeholder-[#64748B] outline-none focus:ring-2 focus:ring-[#4F8EF7] transition text-base ${
-                errors.email ? 'border-[#EF4444]' : 'border-[#E2E8F0]'
+              className={`w-full bg-[#131317] border rounded-xl px-4 py-3 text-[#E8E8EC] placeholder-[#48486A] outline-none focus:ring-1 focus:ring-[#5B8EF7] transition text-sm ${
+                errors.email ? 'border-[#EF4444]' : 'border-[#222228]'
               }`}
             />
-            {errors.email && <p className="text-xs text-[#EF4444] mt-1">{errors.email}</p>}
+            {errors.email && <p className="text-xs text-[#EF4444] mt-1.5">{errors.email}</p>}
           </div>
 
           <div>
@@ -95,11 +95,11 @@ export default function RegisterPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
-              className={`w-full bg-white border rounded-xl px-4 py-3 text-[#1E293B] placeholder-[#64748B] outline-none focus:ring-2 focus:ring-[#4F8EF7] transition text-base ${
-                errors.password ? 'border-[#EF4444]' : 'border-[#E2E8F0]'
+              className={`w-full bg-[#131317] border rounded-xl px-4 py-3 text-[#E8E8EC] placeholder-[#48486A] outline-none focus:ring-1 focus:ring-[#5B8EF7] transition text-sm ${
+                errors.password ? 'border-[#EF4444]' : 'border-[#222228]'
               }`}
             />
-            {errors.password && <p className="text-xs text-[#EF4444] mt-1">{errors.password}</p>}
+            {errors.password && <p className="text-xs text-[#EF4444] mt-1.5">{errors.password}</p>}
           </div>
 
           <div>
@@ -109,27 +109,37 @@ export default function RegisterPage() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               autoComplete="new-password"
-              className={`w-full bg-white border rounded-xl px-4 py-3 text-[#1E293B] placeholder-[#64748B] outline-none focus:ring-2 focus:ring-[#4F8EF7] transition text-base ${
-                errors.confirmPassword ? 'border-[#EF4444]' : 'border-[#E2E8F0]'
+              className={`w-full bg-[#131317] border rounded-xl px-4 py-3 text-[#E8E8EC] placeholder-[#48486A] outline-none focus:ring-1 focus:ring-[#5B8EF7] transition text-sm ${
+                errors.confirmPassword ? 'border-[#EF4444]' : 'border-[#222228]'
               }`}
             />
             {errors.confirmPassword && (
-              <p className="text-xs text-[#EF4444] mt-1">{errors.confirmPassword}</p>
+              <p className="text-xs text-[#EF4444] mt-1.5">{errors.confirmPassword}</p>
             )}
           </div>
 
-          {serverError && <p className="text-sm text-[#EF4444] text-center">{serverError}</p>}
+          {serverError && <p className="text-xs text-[#EF4444] text-center">{serverError}</p>}
 
           <button
             type="submit"
             disabled={loading}
-            className="bg-[#4F8EF7] text-white font-semibold py-3 rounded-xl mt-1 hover:bg-[#2563EB] transition disabled:opacity-60"
+            className="bg-[#5B8EF7] text-white text-sm font-semibold py-3 rounded-xl mt-1 hover:bg-[#3A6EDB] transition disabled:opacity-50"
           >
-            {loading ? 'Creating account…' : 'Create Account'}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Creating account…
+              </span>
+            ) : (
+              'Create Account'
+            )}
           </button>
 
-          <Link href="/login" className="text-sm text-[#4F8EF7] text-center py-2 hover:underline">
-            Already have an account? Sign In
+          <Link
+            href="/login"
+            className="text-xs text-[#76769A] text-center py-2 hover:text-[#5B8EF7] transition"
+          >
+            Already have an account? <span className="text-[#5B8EF7]">Sign In</span>
           </Link>
         </form>
       </div>
