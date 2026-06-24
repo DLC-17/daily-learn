@@ -5,7 +5,7 @@ export const REFRESH_KEY = 'daily_learn_refresh_token';
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080',
-  timeout: 15_000,
+  timeout: 120_000,
 });
 
 api.interceptors.request.use((config) => {
