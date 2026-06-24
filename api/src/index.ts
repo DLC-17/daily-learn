@@ -17,8 +17,13 @@ import flashcardsRouter from './routes/flashcards';
 
 const app = express();
 
+const allowedOrigins = (process.env['CORS_ORIGINS'] ?? 'http://localhost:3000')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 app.use(helmet());
-app.use(cors());
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
 
 app.get('/health', async (_req, res) => {

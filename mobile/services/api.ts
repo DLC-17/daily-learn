@@ -1,12 +1,13 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { useAuthStore } from '../store/authStore';
 
 const ACCESS_KEY = 'daily_learn_access_token';
 const REFRESH_KEY = 'daily_learn_refresh_token';
 
 const api = axios.create({
   baseURL: process.env['EXPO_PUBLIC_API_URL'] ?? 'http://localhost:8080',
-  timeout: 15_000,
+  timeout: 120_000,
 });
 
 api.interceptors.request.use(async (config) => {
@@ -41,8 +42,7 @@ api.interceptors.response.use(
         return api.request(axiosError.config);
       }
     } catch {
-      await SecureStore.deleteItemAsync(ACCESS_KEY);
-      await SecureStore.deleteItemAsync(REFRESH_KEY);
+      await useAuthStore.getState().logout();
     }
     return Promise.reject(error);
   },

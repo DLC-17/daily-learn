@@ -232,7 +232,6 @@ export default function UploadScreen() {
       const { data } = await api.post<{ data: { contentId: string; questionsGenerated: number } }>(
         '/content',
         formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } },
       );
       return data.data;
     },
