@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
@@ -9,6 +9,37 @@ interface UserProfile { streak_count: number; last_active: string | null }
 interface QuizSession { id: string; is_correct: boolean; shown_at: string }
 interface Topic { id: string; name: string }
 interface Question { id: string }
+
+type DayCell = { date: string; count: number };
+
+function buildCalendar(sessions: { shown_at: string }[]): DayCell[][] {
+  const countByDate: Record<string, number> = {};
+  for (const s of sessions) {
+    const d = s.shown_at.split('T')[0]!;
+    countByDate[d] = (countByDate[d] ?? 0) + 1;
+  }
+  const today = new Date();
+  const days: DayCell[] = [];
+  for (let i = 52 * 7 - 1; i >= 0; i--) {
+    const dt = new Date(today);
+    dt.setDate(dt.getDate() - i);
+    const str = dt.toISOString().split('T')[0]!;
+    days.push({ date: str, count: countByDate[str] ?? 0 });
+  }
+  const weeks: DayCell[][] = [];
+  for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
+  return weeks;
+}
+
+const CAL_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function calColor(count: number): string {
+  if (count === 0) return '#20202A';
+  if (count <= 2) return '#0A2040';
+  if (count <= 5) return '#103878';
+  if (count <= 9) return '#2057B8';
+  return '#5B8EF7';
+}
 
 const todayStr = () => new Date().toISOString().split('T')[0]!;
 
@@ -27,7 +58,7 @@ export default function DashboardPage() {
   const { data: sessions, isLoading: sessionsLoading, refetch: refetchSessions } = useQuery({
     queryKey: ['sessions-home'],
     queryFn: async (): Promise<QuizSession[]> => {
-      const { data } = await api.get<{ data: QuizSession[] }>('/quiz/sessions?limit=100');
+      const { data } = await api.get<{ data: QuizSession[] }>('/quiz/sessions?limit=500');
       return data.data;
     },
   });
@@ -59,6 +90,7 @@ export default function DashboardPage() {
   const dailyGoal = 3;
   const progress = Math.min(todaySessions.length, dailyGoal);
 
+  const calWeeks = useMemo(() => buildCalendar(sessions ?? []), [sessions]);
   const topicItems = [{ id: null as string | null, name: 'All' }, ...(topics ?? [])];
 
   const startQuiz = () => {
@@ -166,6 +198,42 @@ export default function DashboardPage() {
                 <p className="text-xs text-[#76769A] mt-0.5">{label}</p>
               </div>
             ))}
+          </div>
+
+          {/* Activity Calendar */}
+          <div className="bg-[#131317] rounded-xl p-5 border border-[#222228]">
+            <p className="text-xs font-semibold text-[#76769A] uppercase tracking-wider mb-3">Activity</p>
+            {/* Month labels */}
+            <div className="flex gap-[3px] mb-[5px] h-3">
+              {calWeeks.map((week, wi) => {
+                const cur = week[0]?.date.slice(5, 7) ?? '01';
+                const prev = calWeeks[wi - 1]?.[0]?.date.slice(5, 7);
+                const isNew = wi === 0 || cur !== prev;
+                return (
+                  <div key={wi} className="relative" style={{ width: 10, minWidth: 10 }}>
+                    {isNew && (
+                      <span className="absolute left-0 top-0 text-[9px] leading-none text-[#48486A] whitespace-nowrap">
+                        {CAL_MONTHS[parseInt(cur) - 1]}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Week columns */}
+            <div className="flex gap-[3px]">
+              {calWeeks.map((week, wi) => (
+                <div key={wi} className="flex flex-col gap-[3px]">
+                  {week.map((day) => (
+                    <div
+                      key={day.date}
+                      title={`${day.date}: ${day.count} answered`}
+                      style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: calColor(day.count) }}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

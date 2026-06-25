@@ -7,6 +7,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   FlatList,
+  useColorScheme,
 } from 'react-native';
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -16,6 +17,45 @@ import { useColors } from '../../hooks/useColors';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { spacing, fontSizes, borderRadius } from '../../constants/theme';
 import type { ColorPalette } from '../../constants/theme';
+
+type DayCell = { date: string; count: number };
+
+const CAL_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const CAL_WEEKS = 26;
+
+function buildCalendar(sessions: { shown_at: string }[]): DayCell[][] {
+  const countByDate: Record<string, number> = {};
+  for (const s of sessions) {
+    const d = s.shown_at.split('T')[0]!;
+    countByDate[d] = (countByDate[d] ?? 0) + 1;
+  }
+  const today = new Date();
+  const days: DayCell[] = [];
+  for (let i = CAL_WEEKS * 7 - 1; i >= 0; i--) {
+    const dt = new Date(today);
+    dt.setDate(dt.getDate() - i);
+    const str = dt.toISOString().split('T')[0]!;
+    days.push({ date: str, count: countByDate[str] ?? 0 });
+  }
+  const weeks: DayCell[][] = [];
+  for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
+  return weeks;
+}
+
+function calColor(count: number, isDark: boolean): string {
+  if (isDark) {
+    if (count === 0) return '#202A3A';
+    if (count <= 2) return '#0A2040';
+    if (count <= 5) return '#103878';
+    if (count <= 9) return '#2057B8';
+    return '#4F8EF7';
+  }
+  if (count === 0) return '#E4EBF8';
+  if (count <= 2) return '#BFD0EE';
+  if (count <= 5) return '#80A8E0';
+  if (count <= 9) return '#4F8EF7';
+  return '#2563EB';
+}
 
 interface UserProfile {
   streak_count: number;
@@ -130,12 +170,32 @@ const createStyles = (c: ColorPalette) =>
     },
     statValue: { fontSize: fontSizes.xl, fontWeight: 'bold', color: c.text },
     statLabel: { fontSize: fontSizes.xs, color: c.textSecondary, marginTop: 2 },
+    calSection: {
+      backgroundColor: c.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    calMonthRow: { flexDirection: 'row' as const, gap: 2, marginBottom: 5, height: 14 },
+    calGrid: { flexDirection: 'row' as const, gap: 2 },
+    calWeek: { flexDirection: 'column' as const, gap: 2 },
+    calCell: { width: 10, height: 10, borderRadius: 2 },
+    calMonthLabel: {
+      fontSize: 9,
+      color: c.textSecondary,
+      position: 'absolute' as const,
+      top: 0,
+      left: 0,
+      lineHeight: 12,
+    },
   });
 
 export default function HomeScreen() {
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const {
     data: profile,
@@ -172,6 +232,7 @@ export default function HomeScreen() {
   const dailyGoal = 3;
   const progress = Math.min(todaySessions.length, dailyGoal);
 
+  const calWeeks = useMemo(() => buildCalendar(sessions ?? []), [sessions]);
   const topicItems = [{ id: null as string | null, name: 'All' }, ...(topics ?? [])];
 
   const startQuiz = () => {
@@ -273,6 +334,41 @@ export default function HomeScreen() {
               <View style={styles.statCard}>
                 <Text style={styles.statValue}>{todayCorrect}</Text>
                 <Text style={styles.statLabel}>Today Correct</Text>
+              </View>
+            </View>
+
+            {/* Activity Calendar */}
+            <View style={styles.calSection}>
+              <Text style={[styles.sectionTitle, { marginBottom: spacing.xs }]}>Activity</Text>
+              {/* Month labels */}
+              <View style={styles.calMonthRow}>
+                {calWeeks.map((week, wi) => {
+                  const cur = week[0]?.date.slice(5, 7) ?? '01';
+                  const prev = calWeeks[wi - 1]?.[0]?.date.slice(5, 7);
+                  const isNew = wi === 0 || cur !== prev;
+                  return (
+                    <View key={wi} style={{ width: 10 }}>
+                      {isNew && (
+                        <Text style={styles.calMonthLabel}>
+                          {CAL_MONTHS[parseInt(cur) - 1]}
+                        </Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+              {/* Grid */}
+              <View style={styles.calGrid}>
+                {calWeeks.map((week, wi) => (
+                  <View key={wi} style={styles.calWeek}>
+                    {week.map((day) => (
+                      <View
+                        key={day.date}
+                        style={[styles.calCell, { backgroundColor: calColor(day.count, isDark) }]}
+                      />
+                    ))}
+                  </View>
+                ))}
               </View>
             </View>
           </>
