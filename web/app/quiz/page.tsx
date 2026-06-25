@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useState } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import api from '@/lib/api';
 
@@ -16,9 +16,9 @@ interface Question {
 interface SessionResult { correct: boolean; explanation: string }
 
 function QuizContent() {
-  const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const id = searchParams.get('id') ?? '';
   const topicId = searchParams.get('topicId');
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -60,8 +60,8 @@ function QuizContent() {
     setResult(null);
     setNextId(null);
     setSourceExpanded(false);
-    const param = topicId ? `?topicId=${topicId}` : '';
-    router.replace(`/quiz/${nextId}${param}`);
+    const param = topicId ? `&topicId=${topicId}` : '';
+    router.replace(`/quiz?id=${nextId}${param}`);
   };
 
   const optionClass = (index: number) => {
@@ -92,7 +92,7 @@ function QuizContent() {
     return 'text-[#48486A]';
   };
 
-  if (isLoading) {
+  if (!id || isLoading) {
     return (
       <div className="min-h-screen bg-[#09090C] flex items-center justify-center">
         <div className="w-5 h-5 border-2 border-[#5B8EF7] border-t-transparent rounded-full animate-spin" />

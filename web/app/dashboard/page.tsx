@@ -63,8 +63,8 @@ export default function DashboardPage() {
 
   const startQuiz = () => {
     if (!nextQuestion) return;
-    const param = selectedTopicId ? `?topicId=${selectedTopicId}` : '';
-    router.push(`/quiz/${nextQuestion.id}${param}`);
+    const param = selectedTopicId ? `&topicId=${selectedTopicId}` : '';
+    router.push(`/quiz?id=${nextQuestion.id}${param}`);
   };
 
   return (
