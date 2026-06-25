@@ -35,11 +35,11 @@ function buildMonthGrid(year: number, month: number, sessions: { shown_at: strin
 const CAL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 function calColor(count: number): string {
-  if (count === 0) return '#20202A';
-  if (count <= 2) return '#0A2040';
-  if (count <= 5) return '#103878';
-  if (count <= 9) return '#2057B8';
-  return '#5B8EF7';
+  if (count === 0) return 'hsl(220, 8%, 12%)';
+  const ratio = Math.min(count / 12, 1);
+  const sat = Math.round(15 + ratio * 75);
+  const lit = Math.round(16 + ratio * 46);
+  return `hsl(220, ${sat}%, ${lit}%)`;
 }
 
 const todayStr = () => new Date().toISOString().split('T')[0]!;
@@ -93,14 +93,17 @@ export default function DashboardPage() {
 
   const [calYear, setCalYear] = useState(() => new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
+  const [hoveredCell, setHoveredCell] = useState<DayCell | null>(null);
   const nowYear = new Date().getFullYear();
   const nowMonth = new Date().getMonth();
   const isCurrentMonth = calYear === nowYear && calMonth === nowMonth;
   const goPrev = () => {
+    setHoveredCell(null);
     if (calMonth === 0) { setCalYear((y) => y - 1); setCalMonth(11); }
     else setCalMonth((m) => m - 1);
   };
   const goNext = () => {
+    setHoveredCell(null);
     if (!isCurrentMonth) {
       if (calMonth === 11) { setCalYear((y) => y + 1); setCalMonth(0); }
       else setCalMonth((m) => m + 1);
@@ -226,7 +229,11 @@ export default function DashboardPage() {
               >
                 ‹
               </button>
-              <p className="text-xs font-semibold text-[#E8E8EC]">{CAL_MONTHS[calMonth]} {calYear}</p>
+              <p className="text-xs font-semibold text-[#E8E8EC] transition-all duration-100 tabular-nums">
+                {hoveredCell
+                  ? `${hoveredCell.count} answered`
+                  : `${CAL_MONTHS[calMonth]} ${calYear}`}
+              </p>
               <button
                 onClick={goNext}
                 disabled={isCurrentMonth}
@@ -248,12 +255,13 @@ export default function DashboardPage() {
                   <div key={ci} className="aspect-square relative">
                     {cell && (
                       <div
-                        title={`${cell.date}: ${cell.count} answered`}
-                        className="absolute inset-0 rounded-[5px] flex items-center justify-center"
+                        className="absolute inset-0 rounded-[5px] flex items-center justify-center cursor-default transition-all duration-150 hover:scale-110 hover:brightness-125 hover:z-10"
                         style={{
                           backgroundColor: calColor(cell.count),
                           boxShadow: cell.date === today ? '0 0 0 1.5px #5B8EF7' : 'none',
                         }}
+                        onMouseEnter={() => setHoveredCell(cell)}
+                        onMouseLeave={() => setHoveredCell(null)}
                       >
                         <span style={{ fontSize: 11, lineHeight: 1, color: cell.count > 0 ? '#C8C8E0' : '#48486A' }}>
                           {parseInt(cell.date.slice(8))}

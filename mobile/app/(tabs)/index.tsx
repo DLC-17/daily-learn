@@ -7,6 +7,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   FlatList,
+  Pressable,
 } from 'react-native';
 import { useState, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -42,11 +43,11 @@ function buildMonthGrid(year: number, month: number, sessions: { shown_at: strin
 }
 
 function calColor(count: number): string {
-  if (count === 0) return '#1E2535';
-  if (count <= 2) return '#0A2040';
-  if (count <= 5) return '#103878';
-  if (count <= 9) return '#2057B8';
-  return '#4F8EF7';
+  if (count === 0) return 'hsl(220, 8%, 12%)';
+  const ratio = Math.min(count / 12, 1);
+  const sat = Math.round(15 + ratio * 75);
+  const lit = Math.round(16 + ratio * 46);
+  return `hsl(220, ${sat}%, ${lit}%)`;
 }
 
 interface UserProfile {
@@ -222,15 +223,18 @@ export default function HomeScreen() {
 
   const [calYear, setCalYear] = useState(() => new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
+  const [selectedCell, setSelectedCell] = useState<DayCell | null>(null);
   const calTouchX = useRef<number | null>(null);
   const nowYear = new Date().getFullYear();
   const nowMonth = new Date().getMonth();
   const isCurrentMonth = calYear === nowYear && calMonth === nowMonth;
   const goPrev = () => {
+    setSelectedCell(null);
     if (calMonth === 0) { setCalYear((y) => y - 1); setCalMonth(11); }
     else setCalMonth((m) => m - 1);
   };
   const goNext = () => {
+    setSelectedCell(null);
     if (!isCurrentMonth) {
       if (calMonth === 11) { setCalYear((y) => y + 1); setCalMonth(0); }
       else setCalMonth((m) => m + 1);
@@ -358,7 +362,9 @@ export default function HomeScreen() {
                 <TouchableOpacity onPress={goPrev} style={styles.calNavBtn}>
                   <Text style={styles.calNavBtnText}>‹</Text>
                 </TouchableOpacity>
-                <Text style={styles.calNavTitle}>{CAL_MONTHS[calMonth]} {calYear}</Text>
+                <Text style={styles.calNavTitle}>
+                  {selectedCell ? `${selectedCell.count} answered` : `${CAL_MONTHS[calMonth]} ${calYear}`}
+                </Text>
                 <TouchableOpacity onPress={goNext} disabled={isCurrentMonth} style={[styles.calNavBtn, isCurrentMonth ? { opacity: 0.3 } : null]}>
                   <Text style={styles.calNavBtnText}>›</Text>
                 </TouchableOpacity>
@@ -375,12 +381,15 @@ export default function HomeScreen() {
               {monthGrid.map((row, ri) => (
                 <View key={ri} style={styles.calRow}>
                   {row.map((cell, ci) => (
-                    <View
+                    <Pressable
                       key={ci}
-                      style={[
+                      onPress={() => cell && setSelectedCell(selectedCell?.date === cell.date ? null : cell)}
+                      style={({ pressed }) => [
                         styles.calCell,
                         { backgroundColor: cell ? calColor(cell.count) : 'transparent' },
                         cell?.date === today ? { borderWidth: 1.5, borderColor: '#4F8EF7' } : null,
+                        pressed && cell ? { transform: [{ scale: 0.88 }], opacity: 0.75 } : null,
+                        selectedCell?.date === cell?.date ? { borderWidth: 1.5, borderColor: '#76769A' } : null,
                       ]}
                     >
                       {cell && (
@@ -388,7 +397,7 @@ export default function HomeScreen() {
                           {parseInt(cell.date.slice(8))}
                         </Text>
                       )}
-                    </View>
+                    </Pressable>
                   ))}
                 </View>
               ))}
