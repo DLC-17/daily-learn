@@ -12,26 +12,27 @@ interface Question { id: string }
 
 type DayCell = { date: string; count: number };
 
-function buildCalendar(sessions: { shown_at: string }[]): DayCell[][] {
+function buildMonthGrid(year: number, month: number, sessions: { shown_at: string }[]): (DayCell | null)[][] {
   const countByDate: Record<string, number> = {};
   for (const s of sessions) {
     const d = s.shown_at.split('T')[0]!;
     countByDate[d] = (countByDate[d] ?? 0) + 1;
   }
-  const today = new Date();
-  const days: DayCell[] = [];
-  for (let i = 52 * 7 - 1; i >= 0; i--) {
-    const dt = new Date(today);
-    dt.setDate(dt.getDate() - i);
-    const str = dt.toISOString().split('T')[0]!;
-    days.push({ date: str, count: countByDate[str] ?? 0 });
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDow = new Date(year, month, 1).getDay();
+  const cells: (DayCell | null)[] = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    cells.push({ date: dateStr, count: countByDate[dateStr] ?? 0 });
   }
-  const weeks: DayCell[][] = [];
-  for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
-  return weeks;
+  while (cells.length % 7 !== 0) cells.push(null);
+  const rows: (DayCell | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
+  return rows;
 }
 
-const CAL_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const CAL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 function calColor(count: number): string {
   if (count === 0) return '#20202A';
@@ -90,7 +91,22 @@ export default function DashboardPage() {
   const dailyGoal = 3;
   const progress = Math.min(todaySessions.length, dailyGoal);
 
-  const calWeeks = useMemo(() => buildCalendar(sessions ?? []), [sessions]);
+  const [calYear, setCalYear] = useState(() => new Date().getFullYear());
+  const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
+  const nowYear = new Date().getFullYear();
+  const nowMonth = new Date().getMonth();
+  const isCurrentMonth = calYear === nowYear && calMonth === nowMonth;
+  const goPrev = () => {
+    if (calMonth === 0) { setCalYear((y) => y - 1); setCalMonth(11); }
+    else setCalMonth((m) => m - 1);
+  };
+  const goNext = () => {
+    if (!isCurrentMonth) {
+      if (calMonth === 11) { setCalYear((y) => y + 1); setCalMonth(0); }
+      else setCalMonth((m) => m + 1);
+    }
+  };
+  const monthGrid = useMemo(() => buildMonthGrid(calYear, calMonth, sessions ?? []), [calYear, calMonth, sessions]);
   const topicItems = [{ id: null as string | null, name: 'All' }, ...(topics ?? [])];
 
   const startQuiz = () => {
@@ -202,38 +218,52 @@ export default function DashboardPage() {
 
           {/* Activity Calendar */}
           <div className="bg-[#131317] rounded-xl p-5 border border-[#222228]">
-            <p className="text-xs font-semibold text-[#76769A] uppercase tracking-wider mb-3">Activity</p>
-            {/* Month labels */}
-            <div className="flex gap-[3px] mb-[5px] h-3">
-              {calWeeks.map((week, wi) => {
-                const cur = week[0]?.date.slice(5, 7) ?? '01';
-                const prev = calWeeks[wi - 1]?.[0]?.date.slice(5, 7);
-                const isNew = wi === 0 || cur !== prev;
-                return (
-                  <div key={wi} className="relative" style={{ width: 10, minWidth: 10 }}>
-                    {isNew && (
-                      <span className="absolute left-0 top-0 text-[9px] leading-none text-[#48486A] whitespace-nowrap">
-                        {CAL_MONTHS[parseInt(cur) - 1]}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
+            {/* Navigation */}
+            <div className="flex items-center justify-between mb-4">
+              <button
+                onClick={goPrev}
+                className="w-7 h-7 flex items-center justify-center rounded-lg text-[#76769A] hover:text-[#E8E8EC] hover:bg-[#222228] transition text-lg leading-none"
+              >
+                ‹
+              </button>
+              <p className="text-xs font-semibold text-[#E8E8EC]">{CAL_MONTHS[calMonth]} {calYear}</p>
+              <button
+                onClick={goNext}
+                disabled={isCurrentMonth}
+                className="w-7 h-7 flex items-center justify-center rounded-lg text-[#76769A] hover:text-[#E8E8EC] hover:bg-[#222228] disabled:opacity-30 transition text-lg leading-none"
+              >
+                ›
+              </button>
             </div>
-            {/* Week columns */}
-            <div className="flex gap-[3px]">
-              {calWeeks.map((week, wi) => (
-                <div key={wi} className="flex flex-col gap-[3px]">
-                  {week.map((day) => (
-                    <div
-                      key={day.date}
-                      title={`${day.date}: ${day.count} answered`}
-                      style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: calColor(day.count) }}
-                    />
-                  ))}
-                </div>
+            {/* Day-of-week headers */}
+            <div className="grid grid-cols-7 gap-[3px] mb-[3px]">
+              {['S','M','T','W','T','F','S'].map((d, i) => (
+                <div key={i} className="text-[10px] text-[#48486A] text-center pb-1">{d}</div>
               ))}
             </div>
+            {/* Calendar rows */}
+            {monthGrid.map((row, ri) => (
+              <div key={ri} className="grid grid-cols-7 gap-[3px] mb-[3px]">
+                {row.map((cell, ci) => (
+                  <div key={ci} className="aspect-square relative">
+                    {cell && (
+                      <div
+                        title={`${cell.date}: ${cell.count} answered`}
+                        className="absolute inset-0 rounded-[5px] flex items-center justify-center"
+                        style={{
+                          backgroundColor: calColor(cell.count),
+                          boxShadow: cell.date === today ? '0 0 0 1.5px #5B8EF7' : 'none',
+                        }}
+                      >
+                        <span style={{ fontSize: 11, lineHeight: 1, color: cell.count > 0 ? '#C8C8E0' : '#48486A' }}>
+                          {parseInt(cell.date.slice(8))}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ))}
           </div>
         </div>
       )}
