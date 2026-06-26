@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -143,8 +143,7 @@ export default function CardsScreen() {
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [cardIndex, setCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const scaleAnimRef = useRef(new Animated.Value(1));
-  const scaleAnim = scaleAnimRef.current;
+  const scaleAnim = useMemo(() => new Animated.Value(1), []);
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();

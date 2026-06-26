@@ -332,8 +332,7 @@ export default function UploadScreen() {
 
   const isBusy = uploadMutation.isPending || textMutation.isPending;
 
-  const progressAnimRef = useRef(new Animated.Value(0));
-  const progressAnim = progressAnimRef.current;
+  const progressAnim = useMemo(() => new Animated.Value(0), []);
   const animRef = useRef<Animated.CompositeAnimation | null>(null);
   const progressWidth = useMemo(
     () =>
