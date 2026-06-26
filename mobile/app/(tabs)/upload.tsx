@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  FlatList,
   ActivityIndicator,
   Animated,
   ScrollView,
@@ -333,8 +332,17 @@ export default function UploadScreen() {
 
   const isBusy = uploadMutation.isPending || textMutation.isPending;
 
-  const progressAnim = useRef(new Animated.Value(0)).current;
+  const progressAnimRef = useRef(new Animated.Value(0));
+  const progressAnim = progressAnimRef.current;
   const animRef = useRef<Animated.CompositeAnimation | null>(null);
+  const progressWidth = useMemo(
+    () =>
+      progressAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0%', '100%'],
+      }),
+    [progressAnim],
+  );
 
   useEffect(() => {
     if (isBusy) {
@@ -349,7 +357,7 @@ export default function UploadScreen() {
       animRef.current?.stop();
       progressAnim.setValue(0);
     }
-  }, [isBusy]);
+  }, [isBusy, progressAnim]);
 
   return (
     <ScreenWrapper>
@@ -460,10 +468,7 @@ export default function UploadScreen() {
                     style={[
                       styles.progressFill,
                       {
-                        width: progressAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ['0%', '100%'],
-                        }),
+                        width: progressWidth,
                       },
                     ]}
                   />
