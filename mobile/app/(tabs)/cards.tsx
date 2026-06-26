@@ -143,7 +143,8 @@ export default function CardsScreen() {
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [cardIndex, setCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const scaleAnimRef = useRef(new Animated.Value(1));
+  const scaleAnim = scaleAnimRef.current;
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
@@ -153,7 +154,6 @@ export default function CardsScreen() {
   const {
     data: flashcards,
     isLoading: cardsLoading,
-    refetch: refetchCards,
   } = useQuery({
     queryKey: ['flashcards', selectedTopicId],
     queryFn: () => fetchFlashcards(selectedTopicId),
