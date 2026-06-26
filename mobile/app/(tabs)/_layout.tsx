@@ -24,7 +24,7 @@ export default function TabsLayout() {
     if (hydrated && !accessToken) {
       router.replace('/(auth)/login');
     }
-  }, [hydrated, accessToken]);
+  }, [hydrated, accessToken, router]);
 
   return (
     <Tabs
