@@ -27,13 +27,14 @@ api.interceptors.response.use(
       if (!refreshToken) return Promise.reject(error);
 
       const baseURL = process.env['EXPO_PUBLIC_API_URL'] ?? 'http://localhost:8080';
-      const { data } = await axios.post<{ data: { accessToken: string } }>(
+      const { data } = await axios.post<{ data: { accessToken: string; refreshToken: string } }>(
         `${baseURL}/auth/refresh`,
         { refreshToken },
       );
       const newToken = data.data.accessToken;
 
       await SecureStore.setItemAsync(ACCESS_KEY, newToken);
+      await SecureStore.setItemAsync(REFRESH_KEY, data.data.refreshToken);
       if (axiosError.config) {
         axiosError.config['headers'] = {
           ...(axiosError.config['headers'] as Record<string, string>),

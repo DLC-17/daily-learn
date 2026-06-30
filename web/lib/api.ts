@@ -27,12 +27,13 @@ api.interceptors.response.use(
       if (!refreshToken) return Promise.reject(error);
 
       const baseURL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
-      const { data } = await axios.post<{ data: { accessToken: string } }>(
+      const { data } = await axios.post<{ data: { accessToken: string; refreshToken: string } }>(
         `${baseURL}/auth/refresh`,
         { refreshToken },
       );
       const newToken = data.data.accessToken;
       localStorage.setItem(ACCESS_KEY, newToken);
+      localStorage.setItem(REFRESH_KEY, data.data.refreshToken);
 
       if (axiosError.config) {
         axiosError.config['headers'] = {

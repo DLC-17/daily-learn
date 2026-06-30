@@ -147,7 +147,7 @@ const createStyles = (c: ColorPalette) =>
   });
 
 export default function QuizScreen() {
-  const { id, topicId, contentId } = useLocalSearchParams<{ id: string; topicId?: string; contentId?: string }>();
+  const { id, topicId, contentId, contentIds } = useLocalSearchParams<{ id: string; topicId?: string; contentId?: string; contentIds?: string }>();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [result, setResult] = useState<SessionResult | null>(null);
   const [nextId, setNextId] = useState<string | null>(null);
@@ -168,7 +168,8 @@ export default function QuizScreen() {
       setSourceExpanded(false);
       try {
         const params = new URLSearchParams({ exclude: id });
-        if (topicId) params.set('topic_id', topicId);
+        if (contentIds) params.set('content_ids', contentIds);
+        else if (topicId) params.set('topic_id', topicId);
         else if (contentId) params.set('content_id', contentId);
         const { data: qData } = await api.get<{ data: { id: string }[] }>(`/questions?${params}`);
         setNextId(qData.data[0]?.id ?? null);
@@ -189,8 +190,11 @@ export default function QuizScreen() {
     setResult(null);
     setNextId(null);
     setSourceExpanded(false);
-    const param = topicId ? `?topicId=${topicId}` : contentId ? `?contentId=${contentId}` : '';
-    router.replace(`/quiz/${nextId}${param}`);
+    const params: Record<string, string> = { id: nextId };
+    if (contentIds) params['contentIds'] = contentIds;
+    else if (topicId) params['topicId'] = topicId;
+    else if (contentId) params['contentId'] = contentId;
+    router.replace({ pathname: '/quiz/[id]', params });
   };
 
   const getOptionStyle = (index: number) => {

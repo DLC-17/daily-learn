@@ -15,16 +15,28 @@ interface Question {
 
 interface SessionResult { correct: boolean; explanation: string }
 
+const FLAG_REASONS = [
+  'Wrong answer',
+  'Poor wording',
+  'Off-topic',
+  'Other',
+] as const;
+
+type FlagState = 'idle' | 'picking' | 'pending' | 'done';
+
 function QuizContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = searchParams.get('id') ?? '';
   const topicId = searchParams.get('topicId');
+  const groupId = searchParams.get('groupId');
+  const contentId = searchParams.get('contentId');
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [result, setResult] = useState<SessionResult | null>(null);
   const [nextId, setNextId] = useState<string | null>(null);
   const [sourceExpanded, setSourceExpanded] = useState(false);
+  const [flagState, setFlagState] = useState<FlagState>('idle');
 
   const { data: question, isLoading, isError } = useQuery({
     queryKey: ['question', id],
@@ -35,7 +47,7 @@ function QuizContent() {
     enabled: !!id,
   });
 
-  const mutation = useMutation({
+  const answerMutation = useMutation({
     mutationFn: async (payload: { question_id: string; answer_index: number }) => {
       const { data } = await api.post<{ data: SessionResult }>('/quiz/session', payload);
       return data.data;
@@ -43,14 +55,26 @@ function QuizContent() {
     onSuccess: async (data) => {
       setResult(data);
       setSourceExpanded(false);
+      setFlagState('idle');
       try {
         const params = new URLSearchParams({ exclude: id });
-        if (topicId) params.set('topic_id', topicId);
+        if (contentId) params.set('content_id', contentId);
+        else if (groupId) params.set('group_id', groupId);
+        else if (topicId) params.set('topic_id', topicId);
         const { data: qData } = await api.get<{ data: { id: string }[] }>(`/questions?${params.toString()}`);
         setNextId(qData.data[0]?.id ?? null);
       } catch {
         setNextId(null);
       }
+    },
+  });
+
+  const flagMutation = useMutation({
+    mutationFn: async (reason: string) => {
+      await api.post(`/questions/${id}/flag`, { reason });
+    },
+    onSuccess: () => {
+      setFlagState('done');
     },
   });
 
@@ -60,8 +84,17 @@ function QuizContent() {
     setResult(null);
     setNextId(null);
     setSourceExpanded(false);
-    const param = topicId ? `&topicId=${topicId}` : '';
-    router.replace(`/quiz?id=${nextId}${param}`);
+    setFlagState('idle');
+    const params = new URLSearchParams({ id: nextId });
+    if (contentId) params.set('contentId', contentId);
+    else if (groupId) params.set('groupId', groupId);
+    else if (topicId) params.set('topicId', topicId);
+    router.replace(`/quiz?${params.toString()}`);
+  };
+
+  const handleFlag = (reason: string) => {
+    setFlagState('pending');
+    flagMutation.mutate(reason);
   };
 
   const optionClass = (index: number) => {
@@ -162,7 +195,7 @@ function QuizContent() {
             </div>
 
             {question.source_text && (
-              <div className="bg-[#131317] rounded-xl border border-[#222228] mb-4 overflow-hidden">
+              <div className="bg-[#131317] rounded-xl border border-[#222228] mb-3 overflow-hidden">
                 <button
                   className="w-full flex items-center justify-between px-4 py-2.5"
                   onClick={() => setSourceExpanded((v) => !v)}
@@ -177,6 +210,45 @@ function QuizContent() {
                 )}
               </div>
             )}
+
+            {/* Flag section */}
+            <div className="mb-3">
+              {flagState === 'done' ? (
+                <p className="text-xs text-[#76769A] text-center py-1">
+                  Flagged — you can review it in{' '}
+                  <a href="/dashboard/flagged" className="text-[#5B8EF7] hover:underline">Flagged Questions</a>.
+                </p>
+              ) : flagState === 'picking' ? (
+                <div className="bg-[#131317] rounded-xl border border-[#222228] p-3">
+                  <p className="text-xs text-[#76769A] mb-2">What's the issue?</p>
+                  <div className="flex flex-col gap-1.5">
+                    {FLAG_REASONS.map((reason) => (
+                      <button
+                        key={reason}
+                        onClick={() => handleFlag(reason)}
+                        disabled={flagMutation.isPending}
+                        className="text-left px-3 py-2 rounded-lg text-xs text-[#E8E8EC] border border-[#222228] hover:border-[#38384A] hover:bg-[#1A1A20] transition"
+                      >
+                        {reason}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setFlagState('idle')}
+                      className="text-xs text-[#48486A] hover:text-[#76769A] pt-1 transition"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setFlagState('picking')}
+                  className="w-full text-xs text-[#48486A] hover:text-[#76769A] py-1 transition"
+                >
+                  Flag this question
+                </button>
+              )}
+            </div>
 
             <div className="flex flex-col gap-2">
               {nextId && (
@@ -203,12 +275,12 @@ function QuizContent() {
           <button
             onClick={() => {
               if (selectedIndex !== null && question)
-                mutation.mutate({ question_id: question.id, answer_index: selectedIndex });
+                answerMutation.mutate({ question_id: question.id, answer_index: selectedIndex });
             }}
-            disabled={selectedIndex === null || mutation.isPending}
+            disabled={selectedIndex === null || answerMutation.isPending}
             className="w-full py-3 rounded-xl text-sm font-semibold text-white bg-[#5B8EF7] hover:bg-[#3A6EDB] transition disabled:opacity-30"
           >
-            {mutation.isPending ? (
+            {answerMutation.isPending ? (
               <span className="flex items-center justify-center gap-2">
                 <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 Submitting…

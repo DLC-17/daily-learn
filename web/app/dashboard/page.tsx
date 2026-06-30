@@ -8,6 +8,7 @@ import api from '@/lib/api';
 interface UserProfile { streak_count: number; last_active: string | null }
 interface QuizSession { id: string; is_correct: boolean; shown_at: string }
 interface Topic { id: string; name: string }
+interface Content { id: string; title: string; topic_id: string | null; group_id: string | null; group_name: string | null }
 interface Question { id: string }
 
 type DayCell = { date: string; count: number };
@@ -47,6 +48,8 @@ const todayStr = () => new Date().toISOString().split('T')[0]!;
 export default function DashboardPage() {
   const router = useRouter();
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
 
   const { data: profile, isLoading: profileLoading, refetch: refetchProfile } = useQuery({
     queryKey: ['profile'],
@@ -72,11 +75,41 @@ export default function DashboardPage() {
     },
   });
 
+  const { data: allContent } = useQuery({
+    queryKey: ['content'],
+    queryFn: async (): Promise<Content[]> => {
+      const { data } = await api.get<{ data: Content[] }>('/content');
+      return data.data;
+    },
+  });
+
+  const filteredContent = (allContent ?? []).filter(
+    (c) =>
+      (selectedTopicId === null || c.topic_id === selectedTopicId) &&
+      (selectedGroupId === null || c.group_id === selectedGroupId),
+  );
+
+  // Unique groups present in topic-filtered content (before group filter is applied)
+  const topicFilteredContent = (allContent ?? []).filter(
+    (c) => selectedTopicId === null || c.topic_id === selectedTopicId,
+  );
+  const availableGroups = Array.from(
+    new Map(
+      topicFilteredContent
+        .filter((c) => c.group_id !== null)
+        .map((c) => [c.group_id!, { id: c.group_id!, name: c.group_name! }]),
+    ).values(),
+  ).sort((a, b) => a.name.localeCompare(b.name));
+
   const { data: nextQuestion } = useQuery({
-    queryKey: ['next-question', selectedTopicId],
+    queryKey: ['next-question', selectedTopicId, selectedGroupId, selectedContentId],
     queryFn: async (): Promise<Question | null> => {
-      const params = selectedTopicId ? `?topic_id=${selectedTopicId}` : '';
-      const { data } = await api.get<{ data: Question[] }>(`/questions${params}`);
+      const params = new URLSearchParams();
+      if (selectedContentId) params.set('content_id', selectedContentId);
+      else if (selectedGroupId) params.set('group_id', selectedGroupId);
+      else if (selectedTopicId) params.set('topic_id', selectedTopicId);
+      const qs = params.toString();
+      const { data } = await api.get<{ data: Question[] }>(`/questions${qs ? `?${qs}` : ''}`);
       return data.data[0] ?? null;
     },
   });
@@ -110,12 +143,29 @@ export default function DashboardPage() {
     }
   };
   const monthGrid = useMemo(() => buildMonthGrid(calYear, calMonth, sessions ?? []), [calYear, calMonth, sessions]);
+
   const topicItems = [{ id: null as string | null, name: 'All' }, ...(topics ?? [])];
+  const showGroupFilter = availableGroups.length > 1;
+  const showContentFilter = filteredContent.length > 1;
+
+  const selectTopic = (id: string | null) => {
+    setSelectedTopicId(id);
+    setSelectedGroupId(null);
+    setSelectedContentId(null);
+  };
+
+  const selectGroup = (id: string | null) => {
+    setSelectedGroupId(id);
+    setSelectedContentId(null);
+  };
 
   const startQuiz = () => {
     if (!nextQuestion) return;
-    const param = selectedTopicId ? `&topicId=${selectedTopicId}` : '';
-    router.push(`/quiz?id=${nextQuestion.id}${param}`);
+    const params = new URLSearchParams({ id: nextQuestion.id });
+    if (selectedContentId) params.set('contentId', selectedContentId);
+    else if (selectedGroupId) params.set('groupId', selectedGroupId);
+    else if (selectedTopicId) params.set('topicId', selectedTopicId);
+    router.push(`/quiz?${params.toString()}`);
   };
 
   return (
@@ -155,7 +205,7 @@ export default function DashboardPage() {
                 return (
                   <button
                     key={item.id ?? 'all'}
-                    onClick={() => setSelectedTopicId(item.id)}
+                    onClick={() => selectTopic(item.id)}
                     className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition ${
                       active
                         ? 'bg-[#0C1828] border-[#1A3460] text-[#5B8EF7]'
@@ -166,6 +216,66 @@ export default function DashboardPage() {
                   </button>
                 );
               })}
+            </div>
+          )}
+
+          {/* Group filter */}
+          {showGroupFilter && (
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+              <button
+                onClick={() => selectGroup(null)}
+                className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition ${
+                  selectedGroupId === null
+                    ? 'bg-[#0C1828] border-[#1A3460] text-[#5B8EF7]'
+                    : 'bg-transparent border-[#222228] text-[#76769A] hover:border-[#38384A] hover:text-[#E8E8EC]'
+                }`}
+              >
+                All groups
+              </button>
+              {availableGroups.map((g) => (
+                <button
+                  key={g.id}
+                  onClick={() => selectGroup(g.id)}
+                  style={{ maxWidth: 200 }}
+                  className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition truncate ${
+                    selectedGroupId === g.id
+                      ? 'bg-[#0C1828] border-[#1A3460] text-[#5B8EF7]'
+                      : 'bg-transparent border-[#222228] text-[#76769A] hover:border-[#38384A] hover:text-[#E8E8EC]'
+                  }`}
+                >
+                  📚 {g.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Material filter */}
+          {showContentFilter && (
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+              <button
+                onClick={() => setSelectedContentId(null)}
+                className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition ${
+                  selectedContentId === null
+                    ? 'bg-[#16161C] border-[#38384A] text-[#E8E8EC]'
+                    : 'bg-transparent border-[#222228] text-[#76769A] hover:border-[#38384A] hover:text-[#E8E8EC]'
+                }`}
+              >
+                All material
+              </button>
+              {filteredContent.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedContentId(c.id)}
+                  style={{ maxWidth: 180 }}
+                  className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition truncate ${
+                    selectedContentId === c.id
+                      ? 'bg-[#16161C] border-[#38384A] text-[#E8E8EC]'
+                      : 'bg-transparent border-[#222228] text-[#76769A] hover:border-[#38384A] hover:text-[#E8E8EC]'
+                  }`}
+                >
+                  {c.title}
+                </button>
+              ))}
             </div>
           )}
 

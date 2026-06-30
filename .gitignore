@@ -18,6 +18,8 @@ dist/
 build/
 .expo/
 .next/
+out/
+*.tsbuildinfo
 
 # Vercel
 .vercel/
@@ -35,3 +37,4 @@ coverage/
 
 # Expo
 .expo-shared/
+.vercel

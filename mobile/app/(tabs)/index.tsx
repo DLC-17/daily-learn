@@ -6,7 +6,6 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  FlatList,
   Pressable,
 } from 'react-native';
 import { useState, useMemo, useRef } from 'react';
@@ -61,15 +60,6 @@ interface QuizSession {
   shown_at: string;
 }
 
-interface Topic {
-  id: string;
-  name: string;
-}
-
-interface Question {
-  id: string;
-}
-
 const fetchProfile = async (): Promise<UserProfile> => {
   const { data } = await api.get<{ data: UserProfile }>('/user/profile');
   return data.data;
@@ -79,19 +69,6 @@ const fetchSessions = async (): Promise<QuizSession[]> => {
   const { data } = await api.get<{ data: QuizSession[] }>('/quiz/sessions?limit=500');
   return data.data;
 };
-
-const fetchTopics = async (): Promise<Topic[]> => {
-  const { data } = await api.get<{ data: Topic[] }>('/topics');
-  return data.data;
-};
-
-const fetchNextQuestion = async (topicId: string | null): Promise<Question | null> => {
-  const params = topicId ? `?topic_id=${topicId}` : '';
-  const { data } = await api.get<{ data: Question[] }>(`/questions${params}`);
-  return data.data[0] ?? null;
-};
-
-const todayStr = () => new Date().toISOString().split('T')[0]!;
 
 const createStyles = (c: ColorPalette) =>
   StyleSheet.create({
@@ -111,19 +88,6 @@ const createStyles = (c: ColorPalette) =>
     streakEmoji: { fontSize: 40 },
     streakCount: { fontSize: 36, fontWeight: 'bold', color: c.text },
     streakLabel: { fontSize: fontSizes.sm, color: c.textSecondary },
-    topicRow: { paddingBottom: spacing.md, gap: spacing.sm },
-    topicChip: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs + 2,
-      borderRadius: borderRadius.full,
-      backgroundColor: c.surface,
-      borderWidth: 1.5,
-      borderColor: c.border,
-      maxWidth: 160,
-    },
-    topicChipActive: { backgroundColor: c.primary, borderColor: c.primary },
-    topicChipText: { fontSize: fontSizes.sm, color: c.textSecondary, fontWeight: '500' },
-    topicChipTextActive: { color: '#fff' },
     quizButton: {
       backgroundColor: c.primary,
       borderRadius: borderRadius.lg,
@@ -131,7 +95,6 @@ const createStyles = (c: ColorPalette) =>
       alignItems: 'center',
       marginBottom: spacing.lg,
     },
-    quizButtonDisabled: { opacity: 0.4 },
     quizButtonText: { color: '#fff', fontSize: fontSizes.md, fontWeight: '600' },
     section: {
       backgroundColor: c.surface,
@@ -167,6 +130,7 @@ const createStyles = (c: ColorPalette) =>
       backgroundColor: '#131317',
       borderRadius: borderRadius.lg,
       padding: spacing.md,
+      marginTop: spacing.lg,
       marginBottom: spacing.lg,
     },
     calNav: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, marginBottom: spacing.md },
@@ -182,7 +146,6 @@ const createStyles = (c: ColorPalette) =>
   });
 
 export default function HomeScreen() {
-  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -198,20 +161,10 @@ export default function HomeScreen() {
     refetch: refetchSessions,
   } = useQuery({ queryKey: ['sessions-home'], queryFn: fetchSessions });
 
-  const { data: topics } = useQuery({
-    queryKey: ['topics'],
-    queryFn: fetchTopics,
-  });
-
-  const { data: nextQuestion } = useQuery({
-    queryKey: ['next-question', selectedTopicId],
-    queryFn: () => fetchNextQuestion(selectedTopicId),
-  });
-
   const isLoading = profileLoading || sessionsLoading;
   const onRefresh = () => { void refetchProfile(); void refetchSessions(); };
 
-  const today = todayStr();
+  const today = new Date().toISOString().split('T')[0]!;
   const todaySessions = (sessions ?? []).filter((s) => s.shown_at.startsWith(today));
   const todayCorrect = todaySessions.filter((s) => s.is_correct).length;
   const totalSessions = sessions?.length ?? 0;
@@ -241,13 +194,6 @@ export default function HomeScreen() {
     }
   };
   const monthGrid = useMemo(() => buildMonthGrid(calYear, calMonth, sessions ?? []), [calYear, calMonth, sessions]);
-  const topicItems = [{ id: null as string | null, name: 'All' }, ...(topics ?? [])];
-
-  const startQuiz = () => {
-    if (!nextQuestion) return;
-    const param = selectedTopicId ? `?topicId=${selectedTopicId}` : '';
-    router.push(`/quiz/${nextQuestion.id}${param}`);
-  };
 
   return (
     <ScreenWrapper>
@@ -272,40 +218,11 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            {topicItems.length > 1 && (
-              <FlatList
-                data={topicItems}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyExtractor={(item) => item.id ?? 'all'}
-                contentContainerStyle={styles.topicRow}
-                renderItem={({ item }) => {
-                  const active = selectedTopicId === item.id;
-                  return (
-                    <TouchableOpacity
-                      style={[styles.topicChip, active ? styles.topicChipActive : null]}
-                      onPress={() => setSelectedTopicId(item.id)}
-                    >
-                      <Text
-                        style={[styles.topicChipText, active ? styles.topicChipTextActive : null]}
-                        numberOfLines={1}
-                      >
-                        {item.name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                }}
-              />
-            )}
-
             <TouchableOpacity
-              style={[styles.quizButton, !nextQuestion ? styles.quizButtonDisabled : null]}
-              onPress={startQuiz}
-              disabled={!nextQuestion}
+              style={styles.quizButton}
+              onPress={() => router.push('/quiz/config')}
             >
-              <Text style={styles.quizButtonText}>
-                {nextQuestion ? 'Start Quiz' : 'No questions yet — upload some content first'}
-              </Text>
+              <Text style={styles.quizButtonText}>Start Quiz</Text>
             </TouchableOpacity>
 
             <View style={styles.section}>
@@ -357,7 +274,6 @@ export default function HomeScreen() {
                 else if (dx > 50) goPrev();
               }}
             >
-              {/* Navigation */}
               <View style={styles.calNav}>
                 <TouchableOpacity onPress={goPrev} style={styles.calNavBtn}>
                   <Text style={styles.calNavBtnText}>‹</Text>
@@ -369,7 +285,6 @@ export default function HomeScreen() {
                   <Text style={styles.calNavBtnText}>›</Text>
                 </TouchableOpacity>
               </View>
-              {/* Day-of-week headers */}
               <View style={styles.calDowRow}>
                 {['S','M','T','W','T','F','S'].map((d, i) => (
                   <View key={i} style={styles.calDowCell}>
@@ -377,7 +292,6 @@ export default function HomeScreen() {
                   </View>
                 ))}
               </View>
-              {/* Calendar rows */}
               {monthGrid.map((row, ri) => (
                 <View key={ri} style={styles.calRow}>
                   {row.map((cell, ci) => (

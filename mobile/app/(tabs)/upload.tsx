@@ -40,31 +40,15 @@ interface ContentItem {
   file_name: string | null;
   created_at: string;
   questions_generated: number;
-  topic_id: string | null;
-  topic_name: string | null;
+  group_id: string | null;
+  group_name: string | null;
 }
 
-interface Topic {
-  id: string;
-  name: string;
-  content_count: number;
-}
-
-const fetchContent = async (): Promise<ContentItem[]> => {
-  const { data } = await api.get<{ data: ContentItem[] }>('/content');
-  return data.data;
-};
-
-const fetchTopics = async (): Promise<Topic[]> => {
-  const { data } = await api.get<{ data: Topic[] }>('/topics');
-  return data.data;
-};
+interface Group { id: string; name: string; content_count: number }
 
 const extractErrorMsg = (err: unknown, fallback: string): string => {
   if (isAxiosError(err)) {
-    return (
-      (err.response?.data as { error?: { message?: string } })?.error?.message ?? fallback
-    );
+    return (err.response?.data as { error?: { message?: string } })?.error?.message ?? fallback;
   }
   return fallback;
 };
@@ -104,10 +88,11 @@ const createStyles = (c: ColorPalette) =>
       backgroundColor: c.background,
     },
     textArea: { height: 120 },
-    topicSection: { gap: spacing.xs },
-    topicLabel: { fontSize: fontSizes.sm, fontWeight: '600', color: c.textSecondary },
-    topicRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-    topicChip: {
+    // Group picker
+    groupSection: { gap: spacing.xs },
+    groupLabel: { fontSize: fontSizes.sm, fontWeight: '600', color: c.textSecondary },
+    groupChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+    groupChip: {
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.xs,
       borderRadius: borderRadius.full,
@@ -115,10 +100,10 @@ const createStyles = (c: ColorPalette) =>
       borderColor: c.border,
       backgroundColor: c.background,
     },
-    topicChipActive: { borderColor: c.primary, backgroundColor: c.primary },
-    topicChipText: { fontSize: fontSizes.xs, color: c.textSecondary, fontWeight: '500' },
-    topicChipTextActive: { color: '#fff' },
-    newTopicChip: {
+    groupChipActive: { borderColor: c.primary, backgroundColor: c.primary },
+    groupChipText: { fontSize: fontSizes.xs, color: c.textSecondary, fontWeight: '500' },
+    groupChipTextActive: { color: '#fff' },
+    newGroupChip: {
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.xs,
       borderRadius: borderRadius.full,
@@ -126,9 +111,9 @@ const createStyles = (c: ColorPalette) =>
       borderColor: c.border,
       backgroundColor: c.background,
     },
-    newTopicChipText: { fontSize: fontSizes.xs, color: c.primary, fontWeight: '600' },
-    newTopicRow: { flexDirection: 'row', gap: spacing.xs, alignItems: 'center' },
-    newTopicInput: {
+    newGroupChipText: { fontSize: fontSizes.xs, color: c.primary, fontWeight: '600' },
+    newGroupRow: { flexDirection: 'row', gap: spacing.xs, alignItems: 'center' },
+    newGroupInput: {
       flex: 1,
       borderWidth: 1,
       borderColor: c.border,
@@ -139,13 +124,13 @@ const createStyles = (c: ColorPalette) =>
       color: c.text,
       backgroundColor: c.background,
     },
-    newTopicSave: {
+    newGroupSave: {
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.xs,
       backgroundColor: c.primary,
       borderRadius: borderRadius.md,
     },
-    newTopicSaveText: { fontSize: fontSizes.sm, color: '#fff', fontWeight: '600' },
+    newGroupSaveText: { fontSize: fontSizes.sm, color: '#fff', fontWeight: '600' },
     button: {
       backgroundColor: c.primary,
       paddingVertical: spacing.md,
@@ -154,31 +139,130 @@ const createStyles = (c: ColorPalette) =>
     },
     buttonDisabled: { opacity: 0.6 },
     buttonText: { color: '#fff', fontSize: fontSizes.md, fontWeight: '600' },
-    sectionTitle: { fontSize: fontSizes.md, fontWeight: '600', color: c.text, marginBottom: spacing.sm },
-    loader: { marginTop: spacing.lg },
-    contentRow: {
+    buttonHint: { fontSize: fontSizes.xs, color: c.textSecondary, textAlign: 'center', marginTop: spacing.xs },
+    // Groups management section
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.sm,
+    },
+    sectionTitle: { fontSize: fontSizes.md, fontWeight: '600', color: c.text },
+    sectionAction: { fontSize: fontSizes.sm, color: c.primary, fontWeight: '600' },
+    groupError: { fontSize: fontSizes.xs, color: c.error, marginBottom: spacing.xs },
+    createGroupRow: {
+      flexDirection: 'row',
+      gap: spacing.xs,
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    createGroupInput: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: c.primary,
+      borderRadius: borderRadius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      fontSize: fontSizes.sm,
+      color: c.text,
+      backgroundColor: c.background,
+    },
+    createGroupBtn: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      backgroundColor: c.primary,
+      borderRadius: borderRadius.md,
+    },
+    createGroupBtnText: { color: '#fff', fontSize: fontSizes.sm, fontWeight: '600' },
+    cancelBtn: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.md,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    cancelBtnText: { color: c.textSecondary, fontSize: fontSizes.sm },
+    emptyGroupText: { fontSize: fontSizes.sm, color: c.textSecondary, marginBottom: spacing.lg },
+    groupMgmtRow: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: c.surface,
       borderRadius: borderRadius.md,
       padding: spacing.md,
+      marginBottom: spacing.xs,
+      gap: spacing.sm,
+    },
+    groupMgmtEmoji: { fontSize: fontSizes.md },
+    groupMgmtName: { flex: 1, fontSize: fontSizes.md, color: c.text, fontWeight: '500' },
+    groupMgmtCount: { fontSize: fontSizes.xs, color: c.textSecondary },
+    groupMgmtEdit: { fontSize: fontSizes.xs, color: c.textSecondary, paddingHorizontal: spacing.xs },
+    groupMgmtDel: { fontSize: fontSizes.xs, color: c.error, paddingHorizontal: spacing.xs },
+    groupRenameInput: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: c.primary,
+      borderRadius: borderRadius.sm,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 4,
+      fontSize: fontSizes.sm,
+      color: c.text,
+      backgroundColor: c.background,
+    },
+    groupSaveBtn: { fontSize: fontSizes.xs, color: c.primary, paddingHorizontal: spacing.xs, fontWeight: '600' },
+    // Content list
+    loader: { marginTop: spacing.lg },
+    emptyText: { color: c.textSecondary, textAlign: 'center', marginTop: spacing.lg },
+    accordionBlock: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: borderRadius.md,
       marginBottom: spacing.sm,
+      overflow: 'hidden',
+    },
+    accordionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.surface,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm + 2,
+      gap: spacing.sm,
+    },
+    accordionHeaderUngroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.surface,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    accordionEmoji: { fontSize: fontSizes.sm },
+    accordionTitle: { flex: 1, fontSize: fontSizes.md, fontWeight: '600', color: c.text },
+    accordionSubtitle: { flex: 1, fontSize: fontSizes.sm, color: c.textSecondary },
+    accordionCount: { fontSize: fontSizes.xs, color: c.textSecondary },
+    accordionChevron: { fontSize: fontSizes.xs, color: c.textSecondary, marginLeft: spacing.xs },
+    contentItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm + 2,
+      backgroundColor: c.background,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+      gap: spacing.sm,
     },
     contentInfo: { flex: 1 },
-    contentTitle: { fontSize: fontSizes.md, color: c.text, fontWeight: '500' },
+    contentTitle: { fontSize: fontSizes.sm, color: c.text, fontWeight: '500' },
     contentMeta: { fontSize: fontSizes.xs, color: c.textSecondary, marginTop: 2 },
-    topicBadge: {
-      alignSelf: 'flex-start',
-      marginTop: 4,
+    moveGroupBtn: {
       paddingHorizontal: spacing.sm,
-      paddingVertical: 2,
-      borderRadius: borderRadius.full,
-      backgroundColor: c.primary + '22',
+      paddingVertical: 4,
+      borderRadius: borderRadius.sm,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
     },
-    topicBadgeText: { fontSize: 10, color: c.primary, fontWeight: '600' },
-    deleteButton: { padding: spacing.sm },
+    moveGroupBtnText: { fontSize: 11, color: c.textSecondary },
+    deleteButton: { padding: spacing.xs },
     deleteText: { color: c.error, fontSize: fontSizes.md },
-    emptyText: { color: c.textSecondary, textAlign: 'center', marginTop: spacing.lg },
     progressBox: { gap: spacing.xs, marginTop: spacing.xs },
     progressLabel: { fontSize: fontSizes.sm, color: c.text, fontWeight: '500' },
     progressTrack: {
@@ -193,69 +277,152 @@ const createStyles = (c: ColorPalette) =>
 
 export default function UploadScreen() {
   const queryClient = useQueryClient();
-  const [title, setTitle] = useState('');
-  const [pastedText, setPastedText] = useState('');
-  const [activeTab, setActiveTab] = useState<'file' | 'paste'>('file');
-  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
-  const [showNewTopic, setShowNewTopic] = useState(false);
-  const [newTopicName, setNewTopicName] = useState('');
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
+  // Upload form
+  const [title, setTitle] = useState('');
+  const [pastedText, setPastedText] = useState('');
+  const [activeTab, setActiveTab] = useState<'file' | 'photo' | 'paste'>('file');
+
+  // Group picker in form
+  const [uploadGroupId, setUploadGroupId] = useState<string | null>(null);
+  const [showNewUploadGroup, setShowNewUploadGroup] = useState(false);
+  const [newUploadGroupName, setNewUploadGroupName] = useState('');
+
+  // Group management
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [editingGroupName, setEditingGroupName] = useState('');
+  const [groupError, setGroupError] = useState('');
+
+  // Collapsed group IDs in content list
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (id: string) =>
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+
+  const expandGroup = (id: string) =>
+    setCollapsedGroups((prev) => { const next = new Set(prev); next.delete(id); return next; });
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ['content'] });
+    void queryClient.invalidateQueries({ queryKey: ['groups'] });
+  };
+
+  // ── Queries ───────────────────────────────────────────────────────────────
+
   const { data: contentList, isLoading: contentLoading } = useQuery({
     queryKey: ['content'],
-    queryFn: fetchContent,
-  });
-
-  const { data: topics } = useQuery({
-    queryKey: ['topics'],
-    queryFn: fetchTopics,
-  });
-
-  const createTopicMutation = useMutation({
-    mutationFn: async (name: string) => {
-      const { data } = await api.post<{ data: { id: string; name: string } }>('/topics', { name });
+    queryFn: async (): Promise<ContentItem[]> => {
+      const { data } = await api.get<{ data: ContentItem[] }>('/content');
       return data.data;
     },
-    onSuccess: (topic) => {
-      void queryClient.invalidateQueries({ queryKey: ['topics'] });
-      setSelectedTopicId(topic.id);
-      setNewTopicName('');
-      setShowNewTopic(false);
-    },
-    onError: () => Alert.alert('Error', 'Could not create topic'),
   });
+
+  const { data: groups } = useQuery({
+    queryKey: ['groups'],
+    queryFn: async (): Promise<Group[]> => {
+      const { data } = await api.get<{ data: Group[] }>('/groups');
+      return data.data;
+    },
+  });
+
+  // ── Group mutations ───────────────────────────────────────────────────────
+
+  const createGroupMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const { data } = await api.post<{ data: { id: string; name: string } }>('/groups', { name });
+      return data.data;
+    },
+    onSuccess: (g) => {
+      invalidate();
+      setCreatingGroup(false);
+      setNewGroupName('');
+      setGroupError('');
+      // If created from form picker, select the new group
+      if (showNewUploadGroup) {
+        setUploadGroupId(g.id);
+        setShowNewUploadGroup(false);
+        setNewUploadGroupName('');
+      }
+    },
+    onError: (err) => setGroupError(extractErrorMsg(err, 'Could not create group')),
+  });
+
+  const renameGroupMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      await api.patch(`/groups/${id}`, { name });
+    },
+    onSuccess: () => {
+      invalidate();
+      setEditingGroupId(null);
+      setEditingGroupName('');
+      setGroupError('');
+    },
+    onError: (err) => setGroupError(extractErrorMsg(err, 'Could not rename group')),
+  });
+
+  const deleteGroupMutation = useMutation({
+    mutationFn: async (id: string) => { await api.delete(`/groups/${id}`); },
+    onSuccess: () => { invalidate(); setGroupError(''); },
+    onError: (err) => setGroupError(extractErrorMsg(err, 'Could not delete group')),
+  });
+
+  const moveGroupMutation = useMutation({
+    mutationFn: async ({ id, groupId }: { id: string; groupId: string | null }) => {
+      await api.patch(`/content/${id}`, { group_id: groupId });
+    },
+    onSuccess: (_, variables) => {
+      invalidate();
+      if (variables.groupId) expandGroup(variables.groupId);
+    },
+    onError: () => Alert.alert('Error', 'Could not move content'),
+  });
+
+  // ── Upload mutations ──────────────────────────────────────────────────────
+
+  const resolveUploadGroupId = async (): Promise<string | null> => {
+    if (showNewUploadGroup) {
+      const name = newUploadGroupName.trim();
+      if (!name) return null;
+      const g = await createGroupMutation.mutateAsync(name);
+      return g.id;
+    }
+    return uploadGroupId;
+  };
 
   const uploadMutation = useMutation({
     mutationFn: async (formData: FormData) => {
       const { data } = await api.post<{ data: { contentId: string; questionsGenerated: number } }>(
-        '/content',
-        formData,
+        '/content', formData,
       );
       return data.data;
     },
     onSuccess: (result) => {
-      void queryClient.invalidateQueries({ queryKey: ['content'] });
+      invalidate();
       setTitle('');
-      setSelectedTopicId(null);
       Alert.alert('Done', `Generated ${result.questionsGenerated} questions!`);
     },
     onError: (err) => Alert.alert('Upload Failed', extractErrorMsg(err, 'Upload failed')),
   });
 
   const textMutation = useMutation({
-    mutationFn: async (payload: { title: string; text: string; topic_id?: string }) => {
+    mutationFn: async (payload: Record<string, string>) => {
       const { data } = await api.post<{ data: { contentId: string; questionsGenerated: number } }>(
-        '/content',
-        payload,
+        '/content', payload,
       );
       return data.data;
     },
     onSuccess: (result) => {
-      void queryClient.invalidateQueries({ queryKey: ['content'] });
+      invalidate();
       setTitle('');
       setPastedText('');
-      setSelectedTopicId(null);
       Alert.alert('Done', `Generated ${result.questionsGenerated} questions!`);
     },
     onError: (err) => Alert.alert('Upload Failed', extractErrorMsg(err, 'Upload failed')),
@@ -266,6 +433,8 @@ export default function UploadScreen() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['content'] }),
     onError: () => Alert.alert('Error', 'Could not delete content'),
   });
+
+  // ── Handlers ─────────────────────────────────────────────────────────────
 
   const handleFilePick = async () => {
     const result = await DocumentPicker.getDocumentAsync({
@@ -281,36 +450,49 @@ export default function UploadScreen() {
     if (result.canceled) return;
     const file = result.assets[0];
     if (!file) return;
+    let groupId: string | null = null;
+    try { groupId = await resolveUploadGroupId(); } catch { Alert.alert('Error', 'Could not create group'); return; }
 
     if (file.name.toLowerCase().endsWith('.md')) {
       const raw = await FileSystem.readAsStringAsync(file.uri, { encoding: 'utf8' });
-      textMutation.mutate({
-        title: title.trim() || file.name,
-        text: stripMarkdown(raw),
-        ...(selectedTopicId ? { topic_id: selectedTopicId } : {}),
-      });
+      const payload: Record<string, string> = { title: title.trim() || file.name, text: stripMarkdown(raw) };
+      if (groupId) payload['group_id'] = groupId;
+      textMutation.mutate(payload);
       return;
     }
-
     const formData = new FormData();
     formData.append('title', title.trim() || file.name);
-    if (selectedTopicId) formData.append('topic_id', selectedTopicId);
-    formData.append('file', {
-      uri: file.uri,
-      name: file.name,
-      type: file.mimeType ?? 'application/octet-stream',
-    } as unknown as Blob);
+    if (groupId) formData.append('group_id', groupId);
+    formData.append('file', { uri: file.uri, name: file.name, type: file.mimeType ?? 'application/octet-stream' } as unknown as Blob);
     uploadMutation.mutate(formData);
   };
 
-  const handleTextSubmit = () => {
+  const handlePhotoPick = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['image/jpeg', 'image/png', 'image/webp'],
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled) return;
+    const file = result.assets[0];
+    if (!file) return;
+    let groupId: string | null = null;
+    try { groupId = await resolveUploadGroupId(); } catch { Alert.alert('Error', 'Could not create group'); return; }
+
+    const formData = new FormData();
+    formData.append('title', title.trim() || file.name);
+    if (groupId) formData.append('group_id', groupId);
+    formData.append('file', { uri: file.uri, name: file.name, type: file.mimeType ?? 'image/jpeg' } as unknown as Blob);
+    uploadMutation.mutate(formData);
+  };
+
+  const handleTextSubmit = async () => {
     if (!title.trim()) { Alert.alert('Missing title', 'Please enter a title.'); return; }
     if (!pastedText.trim()) { Alert.alert('Missing content', 'Please paste some text.'); return; }
-    textMutation.mutate({
-      title: title.trim(),
-      text: pastedText.trim(),
-      ...(selectedTopicId ? { topic_id: selectedTopicId } : {}),
-    });
+    let groupId: string | null = null;
+    try { groupId = await resolveUploadGroupId(); } catch { Alert.alert('Error', 'Could not create group'); return; }
+    const payload: Record<string, string> = { title: title.trim(), text: pastedText.trim() };
+    if (groupId) payload['group_id'] = groupId;
+    textMutation.mutate(payload);
   };
 
   const confirmDelete = (item: ContentItem) => {
@@ -324,34 +506,44 @@ export default function UploadScreen() {
     );
   };
 
-  const handleSaveNewTopic = () => {
-    const name = newTopicName.trim();
-    if (!name) return;
-    createTopicMutation.mutate(name);
+  const confirmDeleteGroup = (g: Group) => {
+    const msg = g.content_count > 0
+      ? `Delete "${g.name}"? Its ${g.content_count} item${g.content_count !== 1 ? 's' : ''} will become ungrouped.`
+      : `Delete "${g.name}"?`;
+    Alert.alert('Delete group?', msg, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteGroupMutation.mutate(g.id) },
+    ]);
+  };
+
+  const confirmMoveGroup = (item: ContentItem) => {
+    const options = [
+      { text: 'No group', onPress: () => moveGroupMutation.mutate({ id: item.id, groupId: null }) },
+      ...(groups ?? []).map((g) => ({
+        text: g.name,
+        onPress: () => moveGroupMutation.mutate({ id: item.id, groupId: g.id }),
+      })),
+      { text: 'Cancel', style: 'cancel' as const },
+    ];
+    Alert.alert(`Move "${item.title}"`, 'Select a group', options);
   };
 
   const isBusy = uploadMutation.isPending || textMutation.isPending;
+
+  // ── Progress animation ────────────────────────────────────────────────────
 
   const progressAnimRef = useRef(new Animated.Value(0));
   const progressAnim = progressAnimRef.current;
   const animRef = useRef<Animated.CompositeAnimation | null>(null);
   const progressWidth = useMemo(
-    () =>
-      progressAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: ['0%', '100%'],
-      }),
+    () => progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
     [progressAnim],
   );
 
   useEffect(() => {
     if (isBusy) {
       progressAnim.setValue(0);
-      animRef.current = Animated.timing(progressAnim, {
-        toValue: 0.85,
-        duration: 40_000,
-        useNativeDriver: false,
-      });
+      animRef.current = Animated.timing(progressAnim, { toValue: 0.85, duration: 40_000, useNativeDriver: false });
       animRef.current.start();
     } else {
       animRef.current?.stop();
@@ -359,72 +551,104 @@ export default function UploadScreen() {
     }
   }, [isBusy, progressAnim]);
 
+  // ── Derived content grouping ──────────────────────────────────────────────
+
+  const grouped = new Map<string | null, ContentItem[]>();
+  for (const item of contentList ?? []) {
+    const key = item.group_id ?? null;
+    const arr = grouped.get(key) ?? [];
+    arr.push(item);
+    grouped.set(key, arr);
+  }
+  const groupedEntries: Array<{ groupId: string | null; groupName: string | null; items: ContentItem[] }> = [];
+  for (const [gid, items] of grouped) {
+    if (gid !== null) groupedEntries.push({ groupId: gid, groupName: items[0]!.group_name, items });
+  }
+  groupedEntries.sort((a, b) => (a.groupName ?? '').localeCompare(b.groupName ?? ''));
+  const ungrouped = grouped.get(null) ?? [];
+  if (ungrouped.length > 0) groupedEntries.push({ groupId: null, groupName: null, items: ungrouped });
+  const hasAnyGroups = groupedEntries.some((e) => e.groupId !== null);
+
   return (
     <ScreenWrapper>
       <View style={styles.container}>
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
           <Text style={styles.heading}>Upload Content</Text>
 
+          {/* ── Tabs ──────────────────────────────────────────────────────── */}
           <View style={styles.tabRow}>
-            {(['file', 'paste'] as const).map((tab) => (
+            {(['file', 'photo', 'paste'] as const).map((tab) => (
               <TouchableOpacity
                 key={tab}
                 style={[styles.tab, activeTab === tab ? styles.tabActive : null]}
                 onPress={() => setActiveTab(tab)}
               >
                 <Text style={[styles.tabText, activeTab === tab ? styles.tabTextActive : null]}>
-                  {tab === 'file' ? 'File' : 'Paste Text'}
+                  {tab === 'file' ? 'File' : tab === 'photo' ? 'Photo' : 'Paste Text'}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
+          {/* ── Form card ─────────────────────────────────────────────────── */}
           <View style={styles.formCard}>
             <TextInput
               style={styles.input}
-              placeholder="Title (optional for file upload)"
+              placeholder="Title (optional for file/photo)"
               placeholderTextColor={colors.textSecondary}
               value={title}
               onChangeText={setTitle}
             />
 
-            {/* Topic selector */}
-            <View style={styles.topicSection}>
-              <Text style={styles.topicLabel}>Topic (optional)</Text>
-              <View style={styles.topicRow}>
-                {(topics ?? []).map((t) => (
+            {/* Group picker */}
+            <View style={styles.groupSection}>
+              <Text style={styles.groupLabel}>Add to group</Text>
+              <View style={styles.groupChipRow}>
+                <TouchableOpacity
+                  style={[styles.groupChip, uploadGroupId === null && !showNewUploadGroup ? styles.groupChipActive : null]}
+                  onPress={() => { setUploadGroupId(null); setShowNewUploadGroup(false); }}
+                >
+                  <Text style={[styles.groupChipText, uploadGroupId === null && !showNewUploadGroup ? styles.groupChipTextActive : null]}>
+                    No group
+                  </Text>
+                </TouchableOpacity>
+                {(groups ?? []).map((g) => (
                   <TouchableOpacity
-                    key={t.id}
-                    style={[styles.topicChip, selectedTopicId === t.id ? styles.topicChipActive : null]}
-                    onPress={() => setSelectedTopicId(selectedTopicId === t.id ? null : t.id)}
+                    key={g.id}
+                    style={[styles.groupChip, uploadGroupId === g.id && !showNewUploadGroup ? styles.groupChipActive : null]}
+                    onPress={() => { setUploadGroupId(g.id); setShowNewUploadGroup(false); }}
                   >
-                    <Text style={[styles.topicChipText, selectedTopicId === t.id ? styles.topicChipTextActive : null]}>
-                      {t.name}
+                    <Text style={[styles.groupChipText, uploadGroupId === g.id && !showNewUploadGroup ? styles.groupChipTextActive : null]}>
+                      {g.name}
                     </Text>
                   </TouchableOpacity>
                 ))}
-                {!showNewTopic && (
-                  <TouchableOpacity style={styles.newTopicChip} onPress={() => setShowNewTopic(true)}>
-                    <Text style={styles.newTopicChipText}>+ New</Text>
+                {!showNewUploadGroup && (
+                  <TouchableOpacity style={styles.newGroupChip} onPress={() => { setShowNewUploadGroup(true); setUploadGroupId(null); }}>
+                    <Text style={styles.newGroupChipText}>+ New</Text>
                   </TouchableOpacity>
                 )}
               </View>
-              {showNewTopic && (
-                <View style={styles.newTopicRow}>
+              {showNewUploadGroup && (
+                <View style={styles.newGroupRow}>
                   <TextInput
-                    style={styles.newTopicInput}
-                    placeholder="Topic name"
+                    style={styles.newGroupInput}
+                    placeholder="Group name…"
                     placeholderTextColor={colors.textSecondary}
-                    value={newTopicName}
-                    onChangeText={setNewTopicName}
+                    value={newUploadGroupName}
+                    onChangeText={setNewUploadGroupName}
                     autoFocus
                     returnKeyType="done"
-                    onSubmitEditing={handleSaveNewTopic}
+                    onSubmitEditing={() => { if (newUploadGroupName.trim()) createGroupMutation.mutate(newUploadGroupName.trim()); }}
                   />
-                  <TouchableOpacity style={styles.newTopicSave} onPress={handleSaveNewTopic}>
-                    <Text style={styles.newTopicSaveText}>Save</Text>
+                  <TouchableOpacity
+                    style={styles.newGroupSave}
+                    onPress={() => { if (newUploadGroupName.trim()) createGroupMutation.mutate(newUploadGroupName.trim()); }}
+                    disabled={!newUploadGroupName.trim() || createGroupMutation.isPending}
+                  >
+                    <Text style={styles.newGroupSaveText}>Save</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => { setShowNewTopic(false); setNewTopicName(''); }}>
+                  <TouchableOpacity onPress={() => { setShowNewUploadGroup(false); setNewUploadGroupName(''); }}>
                     <Text style={{ color: colors.textSecondary, paddingHorizontal: spacing.xs }}>✕</Text>
                   </TouchableOpacity>
                 </View>
@@ -432,13 +656,22 @@ export default function UploadScreen() {
             </View>
 
             {activeTab === 'file' ? (
-              <TouchableOpacity
-                style={[styles.button, isBusy ? styles.buttonDisabled : null]}
-                onPress={handleFilePick}
-                disabled={isBusy}
-              >
-                <Text style={styles.buttonText}>Choose File (PDF, TXT, DOCX, MD)</Text>
+              <TouchableOpacity style={[styles.button, isBusy ? styles.buttonDisabled : null]} onPress={handleFilePick} disabled={isBusy}>
+                <Text style={styles.buttonText}>
+                  {isBusy ? 'Processing…' : 'Choose File — PDF, TXT, DOCX, MD'}
+                </Text>
               </TouchableOpacity>
+            ) : activeTab === 'photo' ? (
+              <>
+                <TouchableOpacity style={[styles.button, isBusy ? styles.buttonDisabled : null]} onPress={handlePhotoPick} disabled={isBusy}>
+                  <Text style={styles.buttonText}>
+                    {isBusy ? 'Processing…' : 'Choose Photo'}
+                  </Text>
+                </TouchableOpacity>
+                <Text style={styles.buttonHint}>
+                  Snap a textbook page, whiteboard, or handwritten notes — AI will extract the text
+                </Text>
+              </>
             ) : (
               <>
                 <TextInput
@@ -452,10 +685,12 @@ export default function UploadScreen() {
                 />
                 <TouchableOpacity
                   style={[styles.button, isBusy ? styles.buttonDisabled : null]}
-                  onPress={handleTextSubmit}
+                  onPress={() => void handleTextSubmit()}
                   disabled={isBusy}
                 >
-                  <Text style={styles.buttonText}>Generate Questions</Text>
+                  <Text style={styles.buttonText}>
+                    {isBusy ? 'Generating…' : 'Generate Questions'}
+                  </Text>
                 </TouchableOpacity>
               </>
             )}
@@ -464,50 +699,145 @@ export default function UploadScreen() {
               <View style={styles.progressBox}>
                 <Text style={styles.progressLabel}>Generating questions…</Text>
                 <View style={styles.progressTrack}>
-                  <Animated.View
-                    style={[
-                      styles.progressFill,
-                      {
-                        width: progressWidth,
-                      },
-                    ]}
-                  />
+                  <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
                 </View>
                 <Text style={styles.progressSub}>This may take a minute for longer content.</Text>
               </View>
             )}
           </View>
 
-          <Text style={styles.sectionTitle}>Your Content</Text>
+          {/* ── Groups management ─────────────────────────────────────────── */}
+          <View style={{ marginBottom: spacing.lg }}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Groups</Text>
+              {!creatingGroup && (
+                <TouchableOpacity onPress={() => { setCreatingGroup(true); setNewGroupName(''); setGroupError(''); }}>
+                  <Text style={styles.sectionAction}>+ New group</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {!!groupError && <Text style={styles.groupError}>{groupError}</Text>}
+
+            {creatingGroup && (
+              <View style={styles.createGroupRow}>
+                <TextInput
+                  style={styles.createGroupInput}
+                  placeholder="Group name…"
+                  placeholderTextColor={colors.textSecondary}
+                  value={newGroupName}
+                  onChangeText={setNewGroupName}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={() => { if (newGroupName.trim()) createGroupMutation.mutate(newGroupName.trim()); }}
+                />
+                <TouchableOpacity
+                  style={styles.createGroupBtn}
+                  onPress={() => { if (newGroupName.trim()) createGroupMutation.mutate(newGroupName.trim()); }}
+                  disabled={!newGroupName.trim() || createGroupMutation.isPending}
+                >
+                  <Text style={styles.createGroupBtnText}>Create</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => { setCreatingGroup(false); setNewGroupName(''); }}>
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {(groups ?? []).length === 0 && !creatingGroup ? (
+              <Text style={styles.emptyGroupText}>No groups yet. Create one to organise your content.</Text>
+            ) : (
+              (groups ?? []).map((g) => (
+                <View key={g.id} style={styles.groupMgmtRow}>
+                  <Text style={styles.groupMgmtEmoji}>📚</Text>
+                  {editingGroupId === g.id ? (
+                    <TextInput
+                      style={styles.groupRenameInput}
+                      value={editingGroupName}
+                      onChangeText={setEditingGroupName}
+                      autoFocus
+                      returnKeyType="done"
+                      onSubmitEditing={() => { if (editingGroupName.trim()) renameGroupMutation.mutate({ id: g.id, name: editingGroupName.trim() }); }}
+                    />
+                  ) : (
+                    <Text style={styles.groupMgmtName} numberOfLines={1}>{g.name}</Text>
+                  )}
+                  <Text style={styles.groupMgmtCount}>{g.content_count} item{g.content_count !== 1 ? 's' : ''}</Text>
+                  {editingGroupId === g.id ? (
+                    <>
+                      <TouchableOpacity onPress={() => { if (editingGroupName.trim()) renameGroupMutation.mutate({ id: g.id, name: editingGroupName.trim() }); }}>
+                        <Text style={styles.groupSaveBtn}>Save</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => { setEditingGroupId(null); setEditingGroupName(''); }}>
+                        <Text style={styles.groupMgmtEdit}>Cancel</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      <TouchableOpacity onPress={() => { setEditingGroupId(g.id); setEditingGroupName(g.name); setGroupError(''); }}>
+                        <Text style={styles.groupMgmtEdit}>Rename</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => confirmDeleteGroup(g)}>
+                        <Text style={styles.groupMgmtDel}>Delete</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+              ))
+            )}
+          </View>
+
+          {/* ── Content list ──────────────────────────────────────────────── */}
+          <Text style={[styles.sectionTitle, { marginBottom: spacing.sm }]}>Your Content</Text>
 
           {contentLoading ? (
             <ActivityIndicator color={colors.primary} style={styles.loader} />
           ) : (contentList ?? []).length === 0 ? (
             <Text style={styles.emptyText}>No content yet. Upload something to get started.</Text>
           ) : (
-            (contentList ?? []).map((item) => (
-              <View key={item.id} style={styles.contentRow}>
-                <View style={styles.contentInfo}>
-                  <Text style={styles.contentTitle} numberOfLines={1}>{item.title}</Text>
-                  {item.topic_name && (
-                    <View style={styles.topicBadge}>
-                      <Text style={styles.topicBadgeText}>{item.topic_name}</Text>
+            groupedEntries.map(({ groupId, groupName, items }) => {
+              const isGroup = groupId !== null;
+              const isOpen = !isGroup || !collapsedGroups.has(groupId);
+
+              return (
+                <View key={groupId ?? '__ungrouped__'} style={styles.accordionBlock}>
+                  {isGroup ? (
+                    <TouchableOpacity style={styles.accordionHeader} onPress={() => toggleGroup(groupId)} activeOpacity={0.7}>
+                      <Text style={styles.accordionEmoji}>📚</Text>
+                      <Text style={styles.accordionTitle} numberOfLines={1}>{groupName}</Text>
+                      <Text style={styles.accordionCount}>{items.length} item{items.length !== 1 ? 's' : ''}</Text>
+                      <Text style={styles.accordionChevron}>{isOpen ? '▲' : '▼'}</Text>
+                    </TouchableOpacity>
+                  ) : hasAnyGroups ? (
+                    <View style={styles.accordionHeaderUngroup}>
+                      <Text style={styles.accordionSubtitle}>Ungrouped</Text>
+                      <Text style={styles.accordionCount}>{items.length} item{items.length !== 1 ? 's' : ''}</Text>
                     </View>
-                  )}
-                  <Text style={styles.contentMeta}>
-                    {item.questions_generated} questions ·{' '}
-                    {new Date(item.created_at).toLocaleDateString()}
-                  </Text>
+                  ) : null}
+
+                  {isOpen && items.map((item) => (
+                    <View key={item.id} style={styles.contentItem}>
+                      <View style={styles.contentInfo}>
+                        <Text style={styles.contentTitle} numberOfLines={1}>{item.title}</Text>
+                        <Text style={styles.contentMeta}>
+                          {item.questions_generated} questions · {new Date(item.created_at).toLocaleDateString()}
+                        </Text>
+                      </View>
+                      {(groups ?? []).length > 0 && (
+                        <TouchableOpacity style={styles.moveGroupBtn} onPress={() => confirmMoveGroup(item)}>
+                          <Text style={styles.moveGroupBtnText}>
+                            {item.group_name ?? 'Move'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity onPress={() => confirmDelete(item)} style={styles.deleteButton}>
+                        <Text style={styles.deleteText}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
                 </View>
-                <TouchableOpacity
-                  onPress={() => confirmDelete(item)}
-                  style={styles.deleteButton}
-                  accessibilityLabel={`Delete ${item.title}`}
-                >
-                  <Text style={styles.deleteText}>✕</Text>
-                </TouchableOpacity>
-              </View>
-            ))
+              );
+            })
           )}
         </ScrollView>
       </View>

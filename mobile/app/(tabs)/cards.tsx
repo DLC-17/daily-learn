@@ -4,22 +4,16 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  FlatList,
   ActivityIndicator,
   Animated,
 } from 'react-native';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { isAxiosError } from 'axios';
+import { useQuery } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import api from '../../services/api';
 import { useColors } from '../../hooks/useColors';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { spacing, fontSizes, borderRadius } from '../../constants/theme';
 import type { ColorPalette } from '../../constants/theme';
-
-interface Topic {
-  id: string;
-  name: string;
-}
 
 interface Flashcard {
   id: string;
@@ -28,34 +22,30 @@ interface Flashcard {
   content_title: string;
 }
 
-const fetchTopics = async (): Promise<Topic[]> => {
-  const { data } = await api.get<{ data: Topic[] }>('/topics');
-  return data.data;
-};
-
-const fetchFlashcards = async (topicId: string | null): Promise<Flashcard[]> => {
-  const params = topicId ? `?topic_id=${topicId}` : '';
-  const { data } = await api.get<{ data: Flashcard[] }>(`/flashcards${params}`);
+const fetchFlashcards = async (): Promise<Flashcard[]> => {
+  const { data } = await api.get<{ data: Flashcard[] }>('/flashcards');
   return data.data;
 };
 
 const createStyles = (c: ColorPalette) =>
   StyleSheet.create({
     container: { flex: 1, padding: spacing.md },
-    heading: { fontSize: fontSizes.xxl, fontWeight: 'bold', color: c.text, marginBottom: spacing.md },
-    topicRow: { paddingBottom: spacing.md, gap: spacing.sm },
-    topicChip: {
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.md,
+    },
+    heading: { fontSize: fontSizes.xxl, fontWeight: 'bold', color: c.text },
+    editButton: {
       paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs + 2,
+      paddingVertical: spacing.xs,
       borderRadius: borderRadius.full,
       backgroundColor: c.surface,
       borderWidth: 1.5,
       borderColor: c.border,
-      maxWidth: 160,
     },
-    topicChipActive: { backgroundColor: c.primary, borderColor: c.primary },
-    topicChipText: { fontSize: fontSizes.sm, color: c.textSecondary, fontWeight: '500' },
-    topicChipTextActive: { color: '#fff' },
+    editButtonText: { fontSize: fontSizes.sm, color: c.textSecondary, fontWeight: '500' },
     deckArea: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     card: {
       width: '90%',
@@ -123,6 +113,11 @@ const createStyles = (c: ColorPalette) =>
     navButtonDisabled: { opacity: 0.3 },
     navButtonText: { fontSize: fontSizes.lg, color: c.text },
     counter: { fontSize: fontSizes.sm, color: c.textSecondary, minWidth: 50, textAlign: 'center' },
+    regenerateRow: { alignItems: 'center', marginTop: spacing.md },
+    regenerateText: { fontSize: fontSizes.sm, color: c.primary, fontWeight: '500' },
+    emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.md, padding: spacing.lg },
+    emptyTitle: { fontSize: fontSizes.lg, fontWeight: '600', color: c.text, textAlign: 'center' },
+    emptySubtext: { fontSize: fontSizes.sm, color: c.textSecondary, textAlign: 'center', marginBottom: spacing.md },
     generateButton: {
       backgroundColor: c.primary,
       paddingVertical: spacing.md,
@@ -131,59 +126,24 @@ const createStyles = (c: ColorPalette) =>
       alignItems: 'center',
     },
     generateButtonText: { color: '#fff', fontSize: fontSizes.md, fontWeight: '600' },
-    regenerateRow: { alignItems: 'center', marginTop: spacing.md },
-    regenerateText: { fontSize: fontSizes.sm, color: c.primary, fontWeight: '500' },
-    emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.md },
-    emptyTitle: { fontSize: fontSizes.lg, fontWeight: '600', color: c.text, textAlign: 'center' },
-    emptySubtext: { fontSize: fontSizes.sm, color: c.textSecondary, textAlign: 'center', marginBottom: spacing.md },
     loader: { marginTop: spacing.xl },
   });
 
 export default function CardsScreen() {
-  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [cardIndex, setCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const scaleAnimRef = useRef(new Animated.Value(1));
   const scaleAnim = scaleAnimRef.current;
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const queryClient = useQueryClient();
 
-  const { data: topics } = useQuery({ queryKey: ['topics'], queryFn: fetchTopics });
-
-  const {
-    data: flashcards,
-    isLoading: cardsLoading,
-  } = useQuery({
-    queryKey: ['flashcards', selectedTopicId],
-    queryFn: () => fetchFlashcards(selectedTopicId),
-  });
-
-  const generateMutation = useMutation({
-    mutationFn: async () => {
-      const body = selectedTopicId ? { topic_id: selectedTopicId } : {};
-      const { data } = await api.post<{ data: { flashcardsGenerated: number } }>(
-        '/flashcards/generate',
-        body,
-      );
-      return data.data;
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['flashcards', selectedTopicId] });
-      setCardIndex(0);
-      setIsFlipped(false);
-    },
-    onError: (err) => {
-      const msg = isAxiosError(err)
-        ? (err.response?.data as { error?: { message?: string } })?.error?.message ?? 'Generation failed'
-        : 'Generation failed';
-      console.error('Flashcard generation error:', msg);
-    },
+  const { data: flashcards, isLoading } = useQuery({
+    queryKey: ['flashcards'],
+    queryFn: fetchFlashcards,
   });
 
   const cards = flashcards ?? [];
   const currentCard = cards[cardIndex];
-  const topicItems = [{ id: null as string | null, name: 'All' }, ...(topics ?? [])];
 
   const animateFlip = (callback: () => void) => {
     Animated.sequence([
@@ -192,94 +152,53 @@ export default function CardsScreen() {
     ]).start(callback);
   };
 
-  const handleFlip = () => {
-    animateFlip(() => setIsFlipped((v) => !v));
-  };
+  const handleFlip = () => animateFlip(() => setIsFlipped((v) => !v));
 
   const goNext = () => {
     if (cardIndex >= cards.length - 1) return;
-    animateFlip(() => {
-      setIsFlipped(false);
-      setCardIndex((i) => i + 1);
-    });
+    animateFlip(() => { setIsFlipped(false); setCardIndex((i) => i + 1); });
   };
 
   const goPrev = () => {
     if (cardIndex <= 0) return;
-    animateFlip(() => {
-      setIsFlipped(false);
-      setCardIndex((i) => i - 1);
-    });
-  };
-
-  const handleTopicSelect = (id: string | null) => {
-    setSelectedTopicId(id);
-    setCardIndex(0);
-    setIsFlipped(false);
+    animateFlip(() => { setIsFlipped(false); setCardIndex((i) => i - 1); });
   };
 
   return (
     <ScreenWrapper>
       <View style={styles.container}>
-        <Text style={styles.heading}>Flashcards</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.heading}>Flashcards</Text>
+          {cards.length > 0 && (
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => router.push('/cards/config')}
+            >
+              <Text style={styles.editButtonText}>Choose Material</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
-        {topicItems.length > 1 && (
-          <FlatList
-            data={topicItems}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => item.id ?? 'all'}
-            contentContainerStyle={styles.topicRow}
-            renderItem={({ item }) => {
-              const active = selectedTopicId === item.id;
-              return (
-                <TouchableOpacity
-                  style={[styles.topicChip, active ? styles.topicChipActive : null]}
-                  onPress={() => handleTopicSelect(item.id)}
-                >
-                  <Text
-                    style={[styles.topicChipText, active ? styles.topicChipTextActive : null]}
-                    numberOfLines={1}
-                  >
-                    {item.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            }}
-          />
-        )}
-
-        {cardsLoading ? (
+        {isLoading ? (
           <ActivityIndicator color={colors.primary} style={styles.loader} />
         ) : cards.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyTitle}>No flashcards yet</Text>
             <Text style={styles.emptySubtext}>
-              {selectedTopicId
-                ? 'Generate flashcards for this topic from your uploaded material.'
-                : 'Select a topic or generate flashcards from all your content.'}
+              Choose which uploaded content to turn into flashcards.
             </Text>
             <TouchableOpacity
-              style={[styles.generateButton, generateMutation.isPending ? { opacity: 0.6 } : null]}
-              onPress={() => generateMutation.mutate()}
-              disabled={generateMutation.isPending}
+              style={styles.generateButton}
+              onPress={() => router.push('/cards/config')}
             >
-              {generateMutation.isPending ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.generateButtonText}>Generate Flashcards</Text>
-              )}
+              <Text style={styles.generateButtonText}>Choose Material</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <>
             <View style={styles.deckArea}>
               <Animated.View style={{ transform: [{ scale: scaleAnim }], width: '100%', alignItems: 'center' }}>
-                <TouchableOpacity
-                  style={styles.card}
-                  onPress={handleFlip}
-                  activeOpacity={0.9}
-                >
+                <TouchableOpacity style={styles.card} onPress={handleFlip} activeOpacity={0.9}>
                   <Text style={styles.cardSideLabel}>{isFlipped ? 'Definition' : 'Term'}</Text>
                   {isFlipped ? (
                     <>
@@ -315,15 +234,8 @@ export default function CardsScreen() {
             </View>
 
             <View style={styles.regenerateRow}>
-              <TouchableOpacity
-                onPress={() => generateMutation.mutate()}
-                disabled={generateMutation.isPending}
-              >
-                {generateMutation.isPending ? (
-                  <ActivityIndicator color={colors.primary} size="small" />
-                ) : (
-                  <Text style={styles.regenerateText}>Regenerate</Text>
-                )}
+              <TouchableOpacity onPress={() => router.push('/cards/config')}>
+                <Text style={styles.regenerateText}>Regenerate</Text>
               </TouchableOpacity>
             </View>
           </>

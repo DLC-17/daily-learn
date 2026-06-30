@@ -15,6 +15,7 @@ router.get(
     const { user } = req as AuthRequest;
     const topicId = (req.query['topic_id'] as string) || null;
     const contentId = (req.query['content_id'] as string) || null;
+    const groupId = (req.query['group_id'] as string) || null;
 
     const { rows } = await pool.query(
       `SELECT f.id, f.term, f.definition, f.content_id, c.title AS content_title
@@ -23,8 +24,9 @@ router.get(
        WHERE c.user_id = $1
          AND ($2::text IS NULL OR c.topic_id::text = $2)
          AND ($3::text IS NULL OR f.content_id::text = $3)
+         AND ($4::text IS NULL OR c.group_id::text = $4)
        ORDER BY c.title ASC, f.created_at ASC`,
-      [user.id, topicId, contentId],
+      [user.id, topicId, contentId, groupId],
     );
 
     res.json({ data: rows });
@@ -38,18 +40,20 @@ router.post(
     const { user } = req as AuthRequest;
     const body = req.body as Record<string, unknown>;
     const topicId = (body['topic_id'] as string | undefined) ?? null;
-    const contentId = (body['content_id'] as string | undefined) ?? null;
-
-    if (!topicId && !contentId) {
-      throw new AppError(400, 'Provide topic_id or content_id', 'VALIDATION_ERROR');
-    }
+    const groupId = (body['group_id'] as string | undefined) ?? null;
+    // content_ids: comma-separated list; falls back to legacy content_id
+    const contentIds =
+      (body['content_ids'] as string | undefined) ??
+      (body['content_id'] as string | undefined) ??
+      null;
 
     const { rows: contentRows } = await pool.query<{ id: string; raw_text: string }>(
       `SELECT id, raw_text FROM content
        WHERE user_id = $1
          AND ($2::text IS NULL OR topic_id::text = $2)
-         AND ($3::text IS NULL OR id::text = $3)`,
-      [user.id, topicId, contentId],
+         AND ($3::text IS NULL OR id::text = ANY(string_to_array($3, ',')))
+         AND ($4::text IS NULL OR group_id::text = $4)`,
+      [user.id, topicId, contentIds, groupId],
     );
 
     if (contentRows.length === 0) {

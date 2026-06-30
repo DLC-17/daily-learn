@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { pool } from '../db/client';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { AppError } from '../types/index';
@@ -10,6 +11,18 @@ import {
   signRefreshToken,
   verifyRefreshToken,
 } from '../services/auth';
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: { code: 'TOO_MANY_REQUESTS', message: 'Too many login attempts — try again in 15 minutes' },
+    });
+  },
+});
 
 const router = Router();
 
@@ -41,6 +54,7 @@ router.post(
 
 router.post(
   '/login',
+  loginLimiter,
   asyncHandler(async (req: Request, res: Response) => {
     const body = LoginSchema.safeParse(req.body);
     if (!body.success) throw new AppError(400, 'Invalid request body', 'VALIDATION_ERROR');
@@ -88,7 +102,9 @@ router.post(
     if (rows.length === 0) throw new AppError(401, 'Refresh token revoked', 'UNAUTHORIZED');
 
     const accessToken = signAccessToken(decoded);
-    res.json({ data: { accessToken } });
+    const newRefreshToken = signRefreshToken(decoded);
+    await pool.query('UPDATE users SET refresh_token = $1 WHERE id = $2', [newRefreshToken, decoded.id]);
+    res.json({ data: { accessToken, refreshToken: newRefreshToken } });
   }),
 );
 

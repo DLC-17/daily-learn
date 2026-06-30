@@ -1,4 +1,5 @@
 import Groq from 'groq-sdk';
+import { AppError } from '../types/index';
 
 export interface GeneratedQuestion {
   question_text: string;
@@ -68,6 +69,29 @@ export const generateQuestionsFromChunk = async (chunk: string): Promise<Generat
     }
   }
   return [];
+};
+
+export const extractTextFromImage = async (buffer: Buffer, mimetype: string): Promise<string> => {
+  const dataUrl = `data:${mimetype};base64,${buffer.toString('base64')}`;
+  const completion = await getClient().chat.completions.create({
+    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: dataUrl } },
+          {
+            type: 'text',
+            text: 'Extract all readable text from this image. Include all printed text, handwritten notes, and whiteboard content exactly as written. Return ONLY the extracted text with no commentary, labels, or formatting.',
+          },
+        ],
+      },
+    ],
+    max_tokens: 4096,
+  });
+  const text = completion.choices[0]?.message?.content ?? '';
+  if (!text.trim()) throw new AppError(422, 'No readable text found in image', 'EMPTY_CONTENT');
+  return text;
 };
 
 export const generateFlashcardsFromChunk = async (chunk: string): Promise<GeneratedFlashcard[]> => {

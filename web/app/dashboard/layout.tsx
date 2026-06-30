@@ -10,6 +10,7 @@ const NAV = [
   { href: '/dashboard/upload', label: 'Upload', icon: '↑' },
   { href: '/dashboard/history', label: 'History', icon: '◷' },
   { href: '/dashboard/flashcards', label: 'Flashcards', icon: '▣' },
+  { href: '/dashboard/flagged', label: 'Flagged', icon: '⚑' },
   { href: '/dashboard/settings', label: 'Settings', icon: '◉' },
 ];
 

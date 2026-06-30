@@ -71,11 +71,17 @@ router.post(
       yesterday.setUTCDate(yesterday.getUTCDate() - 1);
       const yesterdayDate = yesterday.toISOString().split('T')[0];
 
-      const newStreak = lastActiveDate === yesterdayDate ? 'streak_count + 1' : '1';
-      await pool.query(
-        `UPDATE users SET streak_count = ${newStreak}, last_active = now() WHERE id = $1`,
-        [user.id],
-      );
+      if (lastActiveDate === yesterdayDate) {
+        await pool.query(
+          'UPDATE users SET streak_count = streak_count + 1, last_active = now() WHERE id = $1',
+          [user.id],
+        );
+      } else {
+        await pool.query(
+          'UPDATE users SET streak_count = 1, last_active = now() WHERE id = $1',
+          [user.id],
+        );
+      }
     } else {
       await pool.query('UPDATE users SET last_active = now() WHERE id = $1', [user.id]);
     }

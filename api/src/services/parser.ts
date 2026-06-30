@@ -1,8 +1,13 @@
 import { AppError } from '../types/index';
+import { extractTextFromImage } from './claude';
 
 export const parseFile = async (buffer: Buffer, mimetype: string): Promise<string> => {
   if (mimetype === 'text/plain' || mimetype === 'text/markdown' || mimetype === 'text/x-markdown') {
     return buffer.toString('utf8');
+  }
+
+  if (mimetype === 'image/jpeg' || mimetype === 'image/png' || mimetype === 'image/webp') {
+    return extractTextFromImage(buffer, mimetype);
   }
 
   if (mimetype === 'application/pdf') {

@@ -5,13 +5,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 
 interface Topic { id: string; name: string }
-interface Flashcard { id: string; term: string; definition: string; source_title: string | null }
+interface Content { id: string; title: string; topic_id: string | null }
+interface Content { id: string; title: string; topic_id: string | null; group_id: string | null; group_name: string | null }
+interface Flashcard { id: string; term: string; definition: string; content_title: string | null }
 
 export default function FlashcardsPage() {
   const qc = useQueryClient();
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
   const [cardIndex, setCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
 
   const { data: topics } = useQuery({
     queryKey: ['topics'],
@@ -21,24 +26,62 @@ export default function FlashcardsPage() {
     },
   });
 
+  const { data: allContent } = useQuery({
+    queryKey: ['content'],
+    queryFn: async (): Promise<Content[]> => {
+      const { data } = await api.get<{ data: Content[] }>('/content');
+      return data.data;
+    },
+  });
+
+  const topicFilteredContent = (allContent ?? []).filter(
+    (c) => selectedTopicId === null || c.topic_id === selectedTopicId,
+  );
+
+  const availableGroups = Array.from(
+    new Map(
+      topicFilteredContent
+        .filter((c) => c.group_id !== null)
+        .map((c) => [c.group_id!, { id: c.group_id!, name: c.group_name! }]),
+    ).values(),
+  ).sort((a, b) => a.name.localeCompare(b.name));
+
+  const filteredContent = topicFilteredContent.filter(
+    (c) => selectedGroupId === null || c.group_id === selectedGroupId,
+  );
+
   const { data: cards, isLoading, isFetching } = useQuery({
-    queryKey: ['flashcards', selectedTopicId],
+    queryKey: ['flashcards', selectedTopicId, selectedGroupId, selectedContentId],
     queryFn: async (): Promise<Flashcard[]> => {
-      const params = selectedTopicId ? `?topic_id=${selectedTopicId}` : '';
-      const { data } = await api.get<{ data: Flashcard[] }>(`/flashcards${params}`);
+      const params = new URLSearchParams();
+      if (selectedContentId) params.set('content_id', selectedContentId);
+      else if (selectedGroupId) params.set('group_id', selectedGroupId);
+      else if (selectedTopicId) params.set('topic_id', selectedTopicId);
+      const qs = params.toString();
+      const { data } = await api.get<{ data: Flashcard[] }>(`/flashcards${qs ? `?${qs}` : ''}`);
       return data.data;
     },
   });
 
   const generateMutation = useMutation({
     mutationFn: async () => {
-      const body = selectedTopicId ? { topic_id: selectedTopicId } : {};
+      const body: Record<string, string> = {};
+      if (selectedContentId) body['content_id'] = selectedContentId;
+      else if (selectedGroupId) body['group_id'] = selectedGroupId;
+      else if (selectedTopicId) body['topic_id'] = selectedTopicId;
       await api.post('/flashcards/generate', body);
     },
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['flashcards', selectedTopicId] });
+      setGenerateError(null);
+      void qc.invalidateQueries({ queryKey: ['flashcards', selectedTopicId, selectedGroupId, selectedContentId] });
       setCardIndex(0);
       setIsFlipped(false);
+    },
+    onError: (err: unknown) => {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        'Generation failed. Make sure you have uploaded content first.';
+      setGenerateError(msg);
     },
   });
 
@@ -47,14 +90,34 @@ export default function FlashcardsPage() {
 
   const selectTopic = (id: string | null) => {
     setSelectedTopicId(id);
+    setSelectedGroupId(null);
+    setSelectedContentId(null);
     setCardIndex(0);
     setIsFlipped(false);
+    setGenerateError(null);
+  };
+
+  const selectGroup = (id: string | null) => {
+    setSelectedGroupId(id);
+    setSelectedContentId(null);
+    setCardIndex(0);
+    setIsFlipped(false);
+    setGenerateError(null);
+  };
+
+  const selectContent = (id: string | null) => {
+    setSelectedContentId(id);
+    setCardIndex(0);
+    setIsFlipped(false);
+    setGenerateError(null);
   };
 
   const prev = () => { setCardIndex((i) => Math.max(0, i - 1)); setIsFlipped(false); };
   const next = () => { setCardIndex((i) => Math.min(total - 1, i + 1)); setIsFlipped(false); };
 
   const topicItems = [{ id: null as string | null, name: 'All' }, ...(topics ?? [])];
+  const showGroupFilter = availableGroups.length > 1;
+  const showContentFilter = filteredContent.length > 1;
 
   return (
     <div className="p-8 max-w-2xl">
@@ -64,7 +127,7 @@ export default function FlashcardsPage() {
 
       {/* Topic filter */}
       {topicItems.length > 1 && (
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5 mb-6" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 mb-2" style={{ scrollbarWidth: 'none' }}>
           {topicItems.map((item) => {
             const active = selectedTopicId === item.id;
             return (
@@ -84,13 +147,76 @@ export default function FlashcardsPage() {
         </div>
       )}
 
+      {/* Group filter */}
+      {showGroupFilter && (
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 mb-2" style={{ scrollbarWidth: 'none' }}>
+          <button
+            onClick={() => selectGroup(null)}
+            className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition ${
+              selectedGroupId === null
+                ? 'bg-[#0C1828] border-[#1A3460] text-[#5B8EF7]'
+                : 'bg-transparent border-[#222228] text-[#76769A] hover:border-[#38384A] hover:text-[#E8E8EC]'
+            }`}
+          >
+            All groups
+          </button>
+          {availableGroups.map((g) => (
+            <button
+              key={g.id}
+              onClick={() => selectGroup(g.id)}
+              style={{ maxWidth: 200 }}
+              className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition truncate ${
+                selectedGroupId === g.id
+                  ? 'bg-[#0C1828] border-[#1A3460] text-[#5B8EF7]'
+                  : 'bg-transparent border-[#222228] text-[#76769A] hover:border-[#38384A] hover:text-[#E8E8EC]'
+              }`}
+            >
+              📚 {g.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Material filter */}
+      {showContentFilter && (
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 mb-6" style={{ scrollbarWidth: 'none' }}>
+          <button
+            onClick={() => selectContent(null)}
+            className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition ${
+              selectedContentId === null
+                ? 'bg-[#16161C] border-[#38384A] text-[#E8E8EC]'
+                : 'bg-transparent border-[#222228] text-[#76769A] hover:border-[#38384A] hover:text-[#E8E8EC]'
+            }`}
+          >
+            All material
+          </button>
+          {filteredContent.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => selectContent(c.id)}
+              style={{ maxWidth: 180 }}
+              className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition truncate ${
+                selectedContentId === c.id
+                  ? 'bg-[#16161C] border-[#38384A] text-[#E8E8EC]'
+                  : 'bg-transparent border-[#222228] text-[#76769A] hover:border-[#38384A] hover:text-[#E8E8EC]'
+              }`}
+            >
+              {c.title}
+            </button>
+          ))}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex justify-center mt-20">
           <div className="w-5 h-5 border-2 border-[#5B8EF7] border-t-transparent rounded-full animate-spin" />
         </div>
       ) : total === 0 ? (
         <div className="flex flex-col items-center gap-5 mt-16">
-          <p className="text-sm text-[#76769A]">No flashcards yet for this topic.</p>
+          <p className="text-sm text-[#76769A]">No flashcards yet for this selection.</p>
+          {generateError && (
+            <p className="text-xs text-red-400 text-center max-w-xs">{generateError}</p>
+          )}
           <button
             onClick={() => generateMutation.mutate()}
             disabled={generateMutation.isPending}
@@ -146,8 +272,8 @@ export default function FlashcardsPage() {
               >
                 <p className="text-xs font-semibold text-[#5B8EF7] uppercase tracking-widest mb-5">Definition</p>
                 <p className="text-sm text-[#E8E8EC] text-center leading-6">{card?.definition}</p>
-                {card?.source_title && (
-                  <p className="text-xs text-[#48486A] mt-5 text-center">{card.source_title}</p>
+                {card?.content_title && (
+                  <p className="text-xs text-[#48486A] mt-5 text-center">{card.content_title}</p>
                 )}
               </div>
             </div>
@@ -172,6 +298,9 @@ export default function FlashcardsPage() {
           </div>
 
           {/* Regenerate */}
+          {generateError && (
+            <p className="text-xs text-red-400 text-center">{generateError}</p>
+          )}
           <button
             onClick={() => generateMutation.mutate()}
             disabled={generateMutation.isPending || isFetching}
