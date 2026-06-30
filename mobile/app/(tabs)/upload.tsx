@@ -532,8 +532,7 @@ export default function UploadScreen() {
 
   // ── Progress animation ────────────────────────────────────────────────────
 
-  const progressAnimRef = useRef(new Animated.Value(0));
-  const progressAnim = progressAnimRef.current;
+  const [progressAnim] = useState(() => new Animated.Value(0));
   const animRef = useRef<Animated.CompositeAnimation | null>(null);
   const progressWidth = useMemo(
     () => progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),

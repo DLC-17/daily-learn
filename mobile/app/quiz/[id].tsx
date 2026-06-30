@@ -190,7 +190,7 @@ export default function QuizScreen() {
     setResult(null);
     setNextId(null);
     setSourceExpanded(false);
-    const params: Record<string, string> = { id: nextId };
+    const params: { id: string; contentIds?: string; topicId?: string; contentId?: string } = { id: nextId };
     if (contentIds) params['contentIds'] = contentIds;
     else if (topicId) params['topicId'] = topicId;
     else if (contentId) params['contentId'] = contentId;

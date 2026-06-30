@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -100,7 +100,7 @@ const createStyles = (c: ColorPalette) =>
 export default function QuizConfigScreen() {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deselectedIds, setDeselectedIds] = useState<Set<string>>(new Set());
   const [isStarting, setIsStarting] = useState(false);
 
   const { data: content, isLoading } = useQuery({
@@ -108,12 +108,15 @@ export default function QuizConfigScreen() {
     queryFn: fetchContent,
   });
 
-  useEffect(() => {
-    if (content) setSelectedIds(new Set(content.map((item) => item.id)));
-  }, [content]);
+  const selectedIds = useMemo(
+    () => new Set((content ?? []).map((item) => item.id).filter((id) => !deselectedIds.has(id))),
+    [content, deselectedIds],
+  );
+
+  const allSelected = (content?.length ?? 0) > 0 && deselectedIds.size === 0;
 
   const toggleItem = useCallback((id: string) => {
-    setSelectedIds((prev) => {
+    setDeselectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -121,11 +124,9 @@ export default function QuizConfigScreen() {
     });
   }, []);
 
-  const allSelected = (content?.length ?? 0) > 0 && content?.length === selectedIds.size;
-
   const toggleAll = useCallback(() => {
-    if (allSelected) setSelectedIds(new Set());
-    else setSelectedIds(new Set(content?.map((item) => item.id) ?? []));
+    if (allSelected) setDeselectedIds(new Set((content ?? []).map((item) => item.id)));
+    else setDeselectedIds(new Set());
   }, [allSelected, content]);
 
   const grouped = useMemo(() => {

@@ -11,7 +11,7 @@ export default function AuthLayout() {
     if (hydrated && accessToken) {
       router.replace('/(tabs)');
     }
-  }, [hydrated, accessToken]);
+  }, [hydrated, accessToken, router]);
 
   return <Stack screenOptions={{ headerShown: false }} />;
 }
